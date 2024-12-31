@@ -30,18 +30,8 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
   return mesh;
 }
 
-/*
-Triangle_Mesh :: struct {  // Here we're being explicit about 3 vertices = a triangle.
-  Triangle :: struct {
-    v1, v2, v3: Vertex;
 
-  #place v1;
-    vertices: [3] Vertex = ---;
-  }
-
-  triangles: [..] Triangle;  
-}
-*/
+#scope_file
 
 stl_model_to_mesh :: (model: STL_Model, scale := 1.0) -> Mesh {
   mesh: Mesh;
@@ -74,9 +64,6 @@ stl_model_to_mesh :: (model: STL_Model, scale := 1.0) -> Mesh {
 
   return mesh;
 }
-
-
-#scope_file
 
 // These structs map directly to the STL file itself.
 STL_Facet :: struct {
