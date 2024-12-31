@@ -23,12 +23,17 @@ covariance_of_tetrahedron :: (tetrahedron: Tetrahedron) -> Matrix3 {
 
 // Note: this only works for constant density!
 // Returns inertia tensor, center of mass.
-mass_properties_of_triangle_mesh :: (mesh: Triangle_Mesh) -> Matrix3 #must, Vector3 #must {
+mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must {
   total_covariance := Matrix3.{};
   total_center_of_mass := Vector3.{};
   total_volume := 0.0;
 
-  for triangle: mesh.triangles {
+  Triangle :: struct { v1, v2, v3: Vector3; }
+  triangles: [] Triangle;
+  triangles.data = mesh.vertices.data;
+  triangles.count = mesh.vertices.count / 3;
+
+  for triangle: triangles {
     tetrahedron: Tetrahedron;   // leave v1, the arbitrary reference point, as 0
     tetrahedron.v2 = triangle.v1;
     tetrahedron.v3 = triangle.v2;
@@ -82,8 +87,3 @@ outer_product :: (v: Vector3, w: Vector3) -> Matrix3 {
     _31=v.z*w.x, _32=v.z*w.y, _33=v.z*w.z,
   };
 }
-
-#load "stl_file.jai"; // Mesh, Vertex, etc
-
-#import "Basic";
-#import "Math";

@@ -128,11 +128,11 @@ main :: () {
 
   array_add(*objects, Object.{name="STL model"});
   stl_object := *objects[objects.count-1];
-  stl_object.mesh = stl_model_to_mesh(load_stl_model(filename), scale=0.1);
+  stl_object.mesh = load_mesh_from_stl_file(filename, scale=0.1);
 
   array_add(*objects, Object.{name="Floor"});
   floor_object := *objects[objects.count-1];
-  floor_object.mesh = stl_model_to_mesh(load_stl_model("assets/floor_big.stl"));
+  floor_object.mesh = load_mesh_from_stl_file("assets/floor_big.stl");
 
   initialize_scene();  // After loading some meshes, set their other properties. 
 
@@ -464,7 +464,7 @@ compile_and_link_shader_program :: (vertex_shader_source: string, fragment_shade
   return shader_program;
 }
 
-#load "stl_file.jai";
+#load "mesh.jai";
 
 #import "Basic";
 #import "GL";
