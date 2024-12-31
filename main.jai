@@ -79,7 +79,8 @@ Object :: struct {  // I hate 'Entity'
   transform: Transform;
   velocity: Vector3;
   angular_momentum: Vector3;
-  inertia_tensor: Matrix3;
+
+  density: float;
 
   mesh: Mesh;
   color: Vector3;
@@ -90,6 +91,15 @@ Object :: struct {  // I hate 'Entity'
   // GL stuff, should we move this inside the Mesh maybe? Or something else?
   mesh_shader_program: GLuint;
   mesh_vertex_buffer_object, mesh_vertex_array_object: GLuint;
+}
+
+Material :: enum {
+  PLA :: 0;
+}
+
+density_of :: (material: Material) -> float {  // in kg/m^3
+  if material == .PLA  return 1240.0;
+  return 1000.0;
 }
 
 objects: [..] Object;
@@ -109,8 +119,9 @@ initialize_scene :: () {
   stl_object.transform.position = .{ 0, 0, 10 };
   stl_object.transform.rotation = .{};
   stl_object.velocity = .{};
-  stl_object.angular_momentum = .{};
+  stl_object.angular_momentum = .{5, 3, 8};
   stl_object.color = .{ 0.6, 0.2, 0.2 };
+  stl_object.density = density_of(.PLA);
 
   floor_object := get_object("Floor");
   floor_object.color = 0.6 * sky_color;
@@ -145,7 +156,7 @@ main :: () {
     Windows.timeBeginPeriod(1);
   }
 
-  window = create_window(window_width, window_height, "", wanted_msaa=4);
+  window = create_window(window_width, window_height, "Drone Simulator", wanted_msaa=4);
   actual_msaa_level := Simp.prepare_window(window, wanted_msaa=4);
   window_width, window_height = Simp.get_render_dimensions(window);
   Simp.set_render_target(window, .LEFT_HANDED);
@@ -209,18 +220,20 @@ simulate_physics :: (dt: float) {
       normalize_or_identity(*transform.rotation);
       */
 
-      velocity += Vector3.{0, 0, -9.8*dt};  // Gravity
+      //velocity += Vector3.{0, 0, -9.8*dt};  // Gravity
 
       transform.position += velocity*dt;
 
       // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
       R := rotation_matrix(Matrix3, transform.rotation);  
-      w := R * inverse(inertia_tensor) * transpose(R) * angular_momentum;
+      w := R * inverse(mesh.inertia_tensor) * transpose(R) * angular_momentum;
 
       rotation_change: Quaternion;
       set_from_axis_and_angle(*rotation_change, w, dt*length(w));
       transform.rotation *= rotation_change;
       normalize_or_identity(*transform.rotation);
+
+      //print("inertia = %, R = %, w = %, delta = %\n", inertia_tensor, R, w, rotation_change);
     }
   }
 }

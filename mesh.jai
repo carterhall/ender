@@ -23,15 +23,15 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
   inertia_tensor, center_of_mass := mass_properties_of_triangle_mesh(mesh);
 
   mesh.inertia_tensor = inertia_tensor;
-  //for * mesh.vertices  it.position -= center_of_mass; 
+  for * mesh.vertices  it.position -= center_of_mass; 
 
-  print("Mesh % has center of mass %\n", file_path, center_of_mass);
+  print("Mesh % has center of mass %, inertia tensor %\n", file_path, center_of_mass, inertia_tensor);
 
   return mesh;
 }
 
 
-#scope_file
+//#scope_file
 
 stl_model_to_mesh :: (model: STL_Model, scale := 1.0) -> Mesh {
   mesh: Mesh;
@@ -152,15 +152,18 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
 
     // @Speed Recomputing A here, could refactor to avoid
     tetrahedron_volume := 1.0/6 * determinant(make_A_matrix(tetrahedron));
+    //print("Tetrahedron %, CoM %, volume %\n", tetrahedron, tetrahedron_center_of_mass, tetrahedron_volume);
 
     tetrahedron_covariance := covariance_of_tetrahedron(tetrahedron);
 
     total_covariance += tetrahedron_covariance;
     total_volume += tetrahedron_volume;
-    total_center_of_mass += tetrahedron_center_of_mass;
+    total_center_of_mass += tetrahedron_center_of_mass * tetrahedron_volume;
   }
 
-  total_center_of_mass /= total_volume;
+  if total_volume != 0.0 {
+    total_center_of_mass /= total_volume;
+  }
 
   // Translate the total covariance matrix, via the parallel axis theorem
   translation := -total_center_of_mass;
