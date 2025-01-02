@@ -119,7 +119,7 @@ initialize_scene :: () {
   stl_object.transform.position = .{ 0, 0, 10 };
   stl_object.transform.rotation = .{};
   stl_object.velocity = .{};
-  stl_object.angular_momentum = .{5, 3, 8};
+  stl_object.angular_momentum = .{7, 60, 13};
   stl_object.color = .{ 0.6, 0.2, 0.2 };
   stl_object.density = density_of(.PLA);
 
@@ -333,9 +333,6 @@ render_object :: (using object: Object, camera: Camera) {
   glBindVertexArray(mesh_vertex_array_object);
   glBindBuffer(GL_ARRAY_BUFFER, mesh_vertex_buffer_object);
   glUseProgram(mesh_shader_program); 
-
-  rotation_about_z: Quaternion;
-  transform.rotation = rotation_about_z * transform.rotation;
 
   model_rotation := rotation_matrix(Matrix4, transform.rotation);
   model_translation := make_translation_matrix4(transform.position);
