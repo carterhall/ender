@@ -119,7 +119,8 @@ initialize_scene :: () {
   stl_object.transform.position = .{ 0, 0, 10 };
   stl_object.transform.rotation = .{};
   stl_object.velocity = .{};
-  stl_object.angular_momentum = .{7, 60, 13};
+  //stl_object.angular_momentum = .{7, 60, 13};
+  stl_object.angular_momentum = .{0, 0, 1300};
   stl_object.color = .{ 0.6, 0.2, 0.2 };
   stl_object.density = density_of(.PLA);
 
@@ -143,7 +144,7 @@ main :: () {
   array_add(*objects, Object.{name="STL model"});
   stl_object := *objects[objects.count-1];
   //stl_object.mesh = load_mesh_from_stl_file(filename, scale=scale);
-  stl_object.mesh = make_test_cube();
+  stl_object.mesh = make_test_cube(side_length=scale);
 
   array_add(*objects, Object.{name="Floor"});
   floor_object := *objects[objects.count-1];
@@ -219,14 +220,12 @@ simulate_physics :: (dt: float) {
 
       // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
       R := rotation_matrix(Matrix3, transform.rotation);  
-      w := R * inverse(mesh.inertia_tensor) * transpose(R) * angular_momentum;
+      w := R * inverse(mesh.inertia_tensor * density) * transpose(R) * angular_momentum;
 
       rotation_change: Quaternion;
       set_from_axis_and_angle(*rotation_change, w, dt*length(w));
       transform.rotation *= rotation_change;
       normalize_or_identity(*transform.rotation);
-
-      //print("inertia = %, R = %, w = %, delta = %\n", inertia_tensor, R, w, rotation_change);
     }
   }
 }

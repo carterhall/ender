@@ -20,12 +20,12 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
 
   mesh := stl_model_to_mesh(stl_model, scale=scale);
 
-  inertia_tensor, center_of_mass := mass_properties_of_triangle_mesh(mesh);
+  inertia_tensor, center_of_mass, volume := mass_properties_of_triangle_mesh(mesh);
 
   mesh.inertia_tensor = inertia_tensor;
   for * mesh.vertices  it.position -= center_of_mass; 
 
-  print("Mesh % has center of mass %, inertia tensor %\n", file_path, center_of_mass, inertia_tensor);
+  print("Mesh % has center of mass %, inertia tensor %, volume %\n", file_path, center_of_mass, inertia_tensor, volume);
 
   return mesh;
 }
@@ -44,10 +44,10 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> M
   for normal: normals {
     for i_vert: 0..5 {
       _i_vert := ifx i_vert < 3 then i_vert else i_vert - 1;
-      position := 0.5 * normal;
+      position := normal;
 
-      local_x := cos(TAU/8 + _i_vert*TAU/4) / cos(TAU/8) * 0.5;
-      local_y := sin(TAU/8 + _i_vert*TAU/4) / cos(TAU/8) * 0.5;
+      local_x := cos(TAU/8 + _i_vert*TAU/4) / cos(TAU/8);
+      local_y := sin(TAU/8 + _i_vert*TAU/4) / cos(TAU/8);
 
       set_local_x := false;
       for 0..2 {
@@ -59,9 +59,17 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> M
         }
       }
 
+      position = 0.5*side_length*position;
       array_add(*mesh.vertices, Vertex.{ position=position, normal=normal });
     }
   }
+
+  inertia_tensor, center_of_mass, volume := mass_properties_of_triangle_mesh(mesh);
+
+  mesh.inertia_tensor = inertia_tensor;
+  for * mesh.vertices  it.position -= center_of_mass; 
+
+  print("Test cube has center of mass %, inertia tensor %, volume %\n", center_of_mass, inertia_tensor, volume);
 
   return mesh;
 }
@@ -167,7 +175,7 @@ covariance_of_tetrahedron :: (tetrahedron: Tetrahedron) -> Matrix3 {
 
 // Note: this only works for constant density!
 // Returns inertia tensor, center of mass.
-mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must {
+mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must, float #must {
   total_covariance := Matrix3.{};
   total_center_of_mass := Vector3.{};
   total_volume := 0.0;
@@ -187,7 +195,7 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
     tetrahedron_center_of_mass := (tetrahedron.v2 + tetrahedron.v3 + tetrahedron.v4)/4;
 
     // @Speed Recomputing A here, could refactor to avoid
-    tetrahedron_volume := 1.0/6 * determinant(make_A_matrix(tetrahedron));
+    tetrahedron_volume := abs(1.0/6 * determinant(make_A_matrix(tetrahedron)));
     //print("Tetrahedron %, CoM %, volume %\n", tetrahedron, tetrahedron_center_of_mass, tetrahedron_volume);
 
     tetrahedron_covariance := covariance_of_tetrahedron(tetrahedron);
@@ -210,7 +218,7 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
 
   // @Note Material properties were factored out - still need to multiply the result by material density.
 
-  return inertia_tensor_without_density, total_center_of_mass;    
+  return inertia_tensor_without_density, total_center_of_mass, total_volume;
 }
 
 Tetrahedron :: struct {
