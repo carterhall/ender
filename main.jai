@@ -130,16 +130,20 @@ initialize_scene :: () {
 
 main :: () {
   args := get_command_line_arguments();
-  if args.count != 2 {
-    log_error("Usage: % <STL filename>", args[0]);
+  if args.count < 2 {
+    log_error("Usage: % <STL filename> <optional model scaling factor>", args[0]);
     return;
   }
 
   filename := args[1];
 
+  scale := 1.0;
+  if args.count > 2  scale = parse_float(*args[2]);
+
   array_add(*objects, Object.{name="STL model"});
   stl_object := *objects[objects.count-1];
-  stl_object.mesh = load_mesh_from_stl_file(filename, scale=0.1);
+  //stl_object.mesh = load_mesh_from_stl_file(filename, scale=scale);
+  stl_object.mesh = make_test_cube();
 
   array_add(*objects, Object.{name="Floor"});
   floor_object := *objects[objects.count-1];
@@ -156,7 +160,7 @@ main :: () {
     Windows.timeBeginPeriod(1);
   }
 
-  window = create_window(window_width, window_height, "Drone Simulator", wanted_msaa=4);
+  window = create_window(window_width, window_height, "Motive Engine", wanted_msaa=4);
   actual_msaa_level := Simp.prepare_window(window, wanted_msaa=4);
   window_width, window_height = Simp.get_render_dimensions(window);
   Simp.set_render_target(window, .LEFT_HANDED);
@@ -209,17 +213,6 @@ simulate_physics :: (dt: float) {
     using object;
 
     if enable_movement_physics {
-      // For now we are just rotating to prove that we can do anything at all
-      /*
-      OBJECT_ROTATION_SPEED :: 90.0 * TAU/360.0; // rad/s
-
-      yaw_change: Quaternion;
-      set_from_axis_and_angle(*yaw_change, .{0,0,1}, dt*OBJECT_ROTATION_SPEED);
-
-      transform.rotation *= yaw_change;
-      normalize_or_identity(*transform.rotation);
-      */
-
       //velocity += Vector3.{0, 0, -9.8*dt};  // Gravity
 
       transform.position += velocity*dt;
@@ -391,8 +384,6 @@ FRAGMENT_SHADER_SOURCE :: #string END
   in vec3 normal_for_color;
 
   void main() {
-    //color = vec4(0.6, 0, 0, 1);   // red!
-
     //color = position_for_color; // multicolor for debugging
 
     color = object_base_color;
@@ -481,4 +472,5 @@ compile_and_link_shader_program :: (vertex_shader_source: string, fragment_shade
 Input :: #import "Input";
 #import "Math";
 Simp :: #import "Simp";
+#import "String";
 #import "Window_Creation";

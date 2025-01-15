@@ -30,6 +30,42 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
   return mesh;
 }
 
+make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Mesh {
+  mesh: Mesh;
+
+  normals: [..] Vector3;
+  for axis: 0..2 {
+    v: Vector3;
+    v.component[axis] = -1;
+    array_add(*normals, v);
+    array_add(*normals, -v);
+  }
+
+  for normal: normals {
+    for i_vert: 0..5 {
+      _i_vert := ifx i_vert < 3 then i_vert else i_vert - 1;
+      position := 0.5 * normal;
+
+      local_x := cos(TAU/8 + _i_vert*TAU/4) / cos(TAU/8) * 0.5;
+      local_y := sin(TAU/8 + _i_vert*TAU/4) / cos(TAU/8) * 0.5;
+
+      set_local_x := false;
+      for 0..2 {
+        if !set_local_x && position.component[it] == 0.0 {
+          position.component[it] = local_x;
+          set_local_x = true;
+        } else if set_local_x && position.component[it] == 0.0 {
+          position.component[it] = local_y;
+        }
+      }
+
+      array_add(*mesh.vertices, Vertex.{ position=position, normal=normal });
+    }
+  }
+
+  return mesh;
+}
+
 
 //#scope_file
 
