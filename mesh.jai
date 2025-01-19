@@ -36,7 +36,8 @@ make_test_canonical_tetrahedron :: () -> Mesh {
   return mesh;
 }
 
-make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Mesh {
+make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> Mesh {
+//make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Mesh {
   mesh: Mesh;
 
   normals: [..] Vector3;
@@ -66,23 +67,23 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> M
       }
 
       position = 0.5*side_length*position;
-      array_add(*mesh.vertices, Vertex.{ position=position, normal=normal });
+      array_add(*mesh.vertices, Vertex.{ position=position+center_of_mass, normal=normal });
     }
   }
 
-  inertia_tensor, center_of_mass, volume := mass_properties_of_triangle_mesh(mesh);
+  inertia_tensor, _center_of_mass, volume := mass_properties_of_triangle_mesh(mesh);
 
   // This is the explicit formula for the inertia tensor of a cube, useful for sanity
   // checking our rotation code without involving our inertia tensor calculation.
   //inertia_tensor = volume * side_length/6.0 * Matrix3_Identity;
 
-  // going reverse from inertia_tensor = Matrix3_Identity*trace(C) - C,
+  // from   inertia_tensor = Matrix3_Identity*trace(C) - C,
   // C must be 1/12 * Matrix3_Identity.
 
   mesh.inertia_tensor = inertia_tensor;
-  for * mesh.vertices  it.position -= center_of_mass; 
+  for * mesh.vertices  it.position -= _center_of_mass; 
 
-  print("Test cube has center of mass %, inertia tensor %, volume %\n", center_of_mass, inertia_tensor, volume);
+  print("Test cube has center of mass %, inertia tensor %, volume %\n", _center_of_mass, inertia_tensor, volume);
 
   return mesh;
 }
@@ -196,43 +197,39 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
   total_center_of_mass := Vector3.{};
   total_volume := 0.0;
 
-  Triangle :: struct { v1, v2, v3: Vertex; }
-  triangles: [] Triangle;
-  triangles.data = cast(*Triangle) mesh.vertices.data;
-  triangles.count = mesh.vertices.count / 3;
-
-  for triangle: triangles {
-
-    tetrahedron: Tetrahedron;   
+  // V2: we need the normals, so we can't squash the information as much...
+  assert(mesh.vertices.count % 3 == 0, "Mesh must be a triangle mesh, with vertices divisible by 3.");
+  num_triangles := mesh.vertices.count / 3;
+  for i: 0..num_triangles-1 {
+    tetrahedron: Tetrahedron;
     tetrahedron.v1 = Vector3.{}; // leave v1, the arbitrary reference point, as 0
-    tetrahedron.v2 = triangle.v1.position;
-    tetrahedron.v3 = triangle.v2.position;
-    tetrahedron.v4 = triangle.v3.position;
+    tetrahedron.v2 = mesh.vertices[3*i].position;
+    tetrahedron.v3 = mesh.vertices[3*i+1].position;
+    tetrahedron.v4 = mesh.vertices[3*i+2].position;
+
+    normal := mesh.vertices[3*i].normal;
 
     tetrahedron_center_of_mass := (tetrahedron.v2 + tetrahedron.v3 + tetrahedron.v4)/4;
 
-    // @Speed Recomputing A here, could refactor to avoid
-    tetrahedron_volume := 1.0/6 * determinant(make_A_matrix(tetrahedron));
+    sign_change := sign(volume(tetrahedron)) * sign(dot_product(tetrahedron.v2, normal));
+    tetrahedron_volume := sign_change * volume(tetrahedron);
 
-    tetrahedron_covariance := covariance_of_tetrahedron(tetrahedron);
-    print("Tetrahedron %, CoM %, volume %, cov %\n", it_index, tetrahedron_center_of_mass, tetrahedron_volume, tetrahedron_covariance);
+    print("Tetrahedron %, CoM %, volume %\n", i, tetrahedron_center_of_mass, tetrahedron_volume);
 
-    //total_covariance += density_of(.PLA) * tetrahedron_covariance;
-    total_covariance += sign(tetrahedron_volume) * tetrahedron_covariance;
-    total_volume += abs(tetrahedron_volume);
-    total_center_of_mass += tetrahedron_center_of_mass * abs(tetrahedron_volume);
+    total_volume += tetrahedron_volume;
+    total_center_of_mass += tetrahedron_center_of_mass * tetrahedron_volume;
+
+    tetrahedron_covariance := sign_change * covariance_of_tetrahedron(tetrahedron);
+    total_covariance += tetrahedron_covariance;
   }
 
   if total_volume != 0.0 {
     total_center_of_mass /= total_volume;
   }
 
-  canonical_tetrahedron_center_of_mass :: #run -> Vector3 {
-    return 1.0/4 * Vector3.{1,0,0} * Vector3.{0,1,0} * Vector3.{0,0,1};  
-  };
+  print("Total:\n  CoM %\n  volume %\n  cov %\n\n", total_center_of_mass, total_volume, total_covariance);
 
-  print("Total: CoM %, volume %, cov %\n", total_center_of_mass, total_volume, total_covariance);
-
+  /*   TODO
   {
     // Translate the total covariance matrix, per equations (8) in the paper
     dx := -total_center_of_mass;
@@ -241,6 +238,7 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
     //total_covariance -= total_volume * outer_product(translation, translation);
     total_covariance += total_volume * (outer_product(dx,x_cm) + outer_product(x_cm,dx) + outer_product(dx,dx));
   }
+  */
 
   trace_of_covariance := total_covariance._11 + total_covariance._22 + total_covariance._33;
   inertia_tensor_without_density := Matrix3_Identity*trace_of_covariance - total_covariance;
@@ -274,6 +272,22 @@ outer_product :: (v: Vector3, w: Vector3) -> Matrix3 {
 sign :: (x: float) -> float {
   return ifx x < 0.0 then -1.0 else 1.0;
 }
+
+volume :: (tetrahedron: Tetrahedron) -> float {
+  m := make_matrix_from_columns(
+    tetrahedron.v1 - tetrahedron.v2,
+    tetrahedron.v1 - tetrahedron.v3,
+    tetrahedron.v1 - tetrahedron.v4,
+    Matrix3
+  );
+  return determinant(m) / 6.0;
+}
+
+// Specific volume calculation from the non-Jon paper; hopefully the signs will
+// work out better....
+//volume2 :: (tetrahedron: Tetrahedron) -> float {
+//
+//}
 
 #import "Basic";
 #import "File";

@@ -1,4 +1,13 @@
+# Try to avoid binaries in the test folder
+test/*
+!test/*/
+!test/*.*
+
 *.DS_Store
 *.swp
 bin/*
+*.o
+*.dSYM
 .build/*
+*.exe
+

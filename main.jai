@@ -119,8 +119,8 @@ initialize_scene :: () {
   stl_object.transform.position = .{ 0, 0, 10 };
   stl_object.transform.rotation = .{};
   stl_object.velocity = .{};
-  stl_object.angular_momentum = .{70, 600, 130};
-  //stl_object.angular_momentum = .{0, 1000000, 0};
+  //stl_object.angular_momentum = .{70, 600, 130};
+  stl_object.angular_momentum = .{1300, 0, 0};
   //stl_object.angular_momentum = .{0, 1300, 0} * 0.25;
   stl_object.color = .{ 0.6, 0.2, 0.2 };
   stl_object.density = density_of(.PLA);
@@ -144,8 +144,8 @@ main :: () {
 
   array_add(*objects, Object.{name="STL model"});
   stl_object := *objects[objects.count-1];
-  stl_object.mesh = load_mesh_from_stl_file(filename, scale=scale);
-  //stl_object.mesh = make_test_cube(side_length=scale);
+  //stl_object.mesh = load_mesh_from_stl_file(filename, scale=scale);
+  stl_object.mesh = make_test_cube(side_length=scale);
 
   array_add(*objects, Object.{name="Floor"});
   floor_object := *objects[objects.count-1];
