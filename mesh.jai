@@ -30,6 +30,12 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
   return mesh;
 }
 
+make_test_canonical_tetrahedron :: () -> Mesh {
+  mesh: Mesh;
+  // TODO
+  return mesh;
+}
+
 make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Mesh {
   mesh: Mesh;
 
@@ -65,6 +71,13 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> M
   }
 
   inertia_tensor, center_of_mass, volume := mass_properties_of_triangle_mesh(mesh);
+
+  // This is the explicit formula for the inertia tensor of a cube, useful for sanity
+  // checking our rotation code without involving our inertia tensor calculation.
+  //inertia_tensor = volume * side_length/6.0 * Matrix3_Identity;
+
+  // going reverse from inertia_tensor = Matrix3_Identity*trace(C) - C,
+  // C must be 1/12 * Matrix3_Identity.
 
   mesh.inertia_tensor = inertia_tensor;
   for * mesh.vertices  it.position -= center_of_mass; 
@@ -160,6 +173,10 @@ make_A_matrix :: (tetrahedron: Tetrahedron) -> Matrix3 {
   return A;
 }
 
+/*
+  Note that when Jon writes "covariance" of a tetrahedron or shape, he means the second
+  moment of the mass distribution of the body.
+ */
 covariance_of_tetrahedron :: (tetrahedron: Tetrahedron) -> Matrix3 {
   C_canonical := 1.0/120*Matrix3_Identity + 1.0/120*Matrix3_One; // 1/60 diag, 1/120 otherwise
 
@@ -169,7 +186,6 @@ covariance_of_tetrahedron :: (tetrahedron: Tetrahedron) -> Matrix3 {
 
   // would need this extra step if v1, our arbitrary reference point, weren't {0,0,0}
   // C_double_prime := Translate(C_prime, tetrahedron.v1)
-  // (Translate being parallel axis theorem like below?)
   return C_prime;
 }
 
@@ -187,7 +203,8 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
 
   for triangle: triangles {
 
-    tetrahedron: Tetrahedron;   // leave v1, the arbitrary reference point, as 0
+    tetrahedron: Tetrahedron;   
+    tetrahedron.v1 = Vector3.{}; // leave v1, the arbitrary reference point, as 0
     tetrahedron.v2 = triangle.v1.position;
     tetrahedron.v3 = triangle.v2.position;
     tetrahedron.v4 = triangle.v3.position;
@@ -195,23 +212,35 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
     tetrahedron_center_of_mass := (tetrahedron.v2 + tetrahedron.v3 + tetrahedron.v4)/4;
 
     // @Speed Recomputing A here, could refactor to avoid
-    tetrahedron_volume := abs(1.0/6 * determinant(make_A_matrix(tetrahedron)));
-    //print("Tetrahedron %, CoM %, volume %\n", tetrahedron, tetrahedron_center_of_mass, tetrahedron_volume);
+    tetrahedron_volume := 1.0/6 * determinant(make_A_matrix(tetrahedron));
 
     tetrahedron_covariance := covariance_of_tetrahedron(tetrahedron);
+    print("Tetrahedron %, CoM %, volume %, cov %\n", it_index, tetrahedron_center_of_mass, tetrahedron_volume, tetrahedron_covariance);
 
-    total_covariance += tetrahedron_covariance;
-    total_volume += tetrahedron_volume;
-    total_center_of_mass += tetrahedron_center_of_mass * tetrahedron_volume;
+    //total_covariance += density_of(.PLA) * tetrahedron_covariance;
+    total_covariance += sign(tetrahedron_volume) * tetrahedron_covariance;
+    total_volume += abs(tetrahedron_volume);
+    total_center_of_mass += tetrahedron_center_of_mass * abs(tetrahedron_volume);
   }
 
   if total_volume != 0.0 {
     total_center_of_mass /= total_volume;
   }
 
-  // Translate the total covariance matrix, via the parallel axis theorem
-  translation := -total_center_of_mass;
-  total_covariance -= total_volume * outer_product(translation, translation);
+  canonical_tetrahedron_center_of_mass :: #run -> Vector3 {
+    return 1.0/4 * Vector3.{1,0,0} * Vector3.{0,1,0} * Vector3.{0,0,1};  
+  };
+
+  print("Total: CoM %, volume %, cov %\n", total_center_of_mass, total_volume, total_covariance);
+
+  {
+    // Translate the total covariance matrix, per equations (8) in the paper
+    dx := -total_center_of_mass;
+    //x_cm := canonical_tetrahedron_center_of_mass;
+    x_cm := total_center_of_mass;
+    //total_covariance -= total_volume * outer_product(translation, translation);
+    total_covariance += total_volume * (outer_product(dx,x_cm) + outer_product(x_cm,dx) + outer_product(dx,dx));
+  }
 
   trace_of_covariance := total_covariance._11 + total_covariance._22 + total_covariance._33;
   inertia_tensor_without_density := Matrix3_Identity*trace_of_covariance - total_covariance;
@@ -241,6 +270,11 @@ outer_product :: (v: Vector3, w: Vector3) -> Matrix3 {
     _31=v.z*w.x, _32=v.z*w.y, _33=v.z*w.z,
   };
 }
+
+sign :: (x: float) -> float {
+  return ifx x < 0.0 then -1.0 else 1.0;
+}
+
 #import "Basic";
 #import "File";
 #import "Math";
