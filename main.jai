@@ -43,13 +43,11 @@ view_projection_matrix: Matrix4;
 
 sunlight_intensity := 200.0;
 sunlight_direction :: #run normalize(Vector3.{ 1.5, 1.3, 1 });
-//sunlight_direction :: #run normalize(Vector3.{ 0, 1, 0 });
 
 sky_color :: Vector3.{100.0/256, 107.0/256, 120.0/256};
 
-// light_transform :: Transform.{
-//   position=.{
-// };
+stl_object_scale := 1.0;  // Global so we can keep changing this for diff meshes easily
+stl_object_filename := "";
 
 // Don't want to use a general Transform for the camera; it's better to use
 // Euler angles to store the current rotation state, and generate the quaternion 
@@ -103,7 +101,6 @@ density_of :: (material: Material) -> float {  // in kg/m^3
 }
 
 objects: [..] Object;
-mesh_shader_program: GLuint;
 
 get_object :: (name: string) -> *Object {
   for * objects {
@@ -114,20 +111,47 @@ get_object :: (name: string) -> *Object {
   return null;
 }
 
-initialize_scene :: () {
-  stl_object := get_object("STL model");
-  stl_object.transform.position = .{ 0, 0, 10 };
-  stl_object.transform.rotation = .{};
-  stl_object.velocity = .{};
-  stl_object.angular_momentum = .{70, 600, 130};
-  //stl_object.angular_momentum = .{1300, 0, 0};
-  //stl_object.angular_momentum = .{0, 1300, 0} * 0.25;
-  stl_object.color = .{ 0.6, 0.2, 0.2 };
-  stl_object.density = density_of(.PLA);
+make_or_get_object :: (name: string) -> *Object {
+  object := get_object(name);
+  if object  return object;
 
-  floor_object := get_object("Floor");
-  floor_object.color = 0.6 * sky_color;
-  floor_object.enable_movement_physics = false;
+  array_add(*objects, Object.{name=name});
+  return *objects[objects.count - 1];
+}
+
+initialize_scene :: () {
+  {
+    using stl_object := make_or_get_object("STL model");
+    print("stl: %\n", stl_object);
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file(stl_object_filename, scale=stl_object_scale);
+    transform.position = .{ 0, 0, 3 };
+    transform.rotation = .{};
+    velocity = .{};
+    //angular_momentum = .{70, 600, 130} * 3.0;
+    //angular_momentum = .{1300, 30, 0};
+    angular_momentum = .{-100, 1300, 100};
+    color = .{ 0.6, 0.2, 0.2 };
+    density = density_of(.PLA);
+  }
+
+  {
+    using test_cube := make_or_get_object("test cube");
+    print("cube: %\n", test_cube);
+    if !initialized(mesh)  mesh = make_test_cube(side_length=1.0);
+    transform.position = .{ 0, 4, 3 };
+    transform.rotation = .{};
+    velocity = .{};
+    angular_momentum = .{-100, 1300, 100};
+    color = .{ 0.2, 0.2, 0.6 };
+    density = density_of(.PLA);
+  }
+
+  {
+    using floor_object := make_or_get_object("Floor");
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/floor_big.stl");
+    color = 0.8 * sky_color;
+    enable_movement_physics = false;
+  }
 }
 
 main :: () {
@@ -137,21 +161,10 @@ main :: () {
     return;
   }
 
-  filename := args[1];
+  stl_object_filename = args[1];
+  if args.count > 2  stl_object_scale = parse_float(*args[2]);
 
-  scale := 1.0;
-  if args.count > 2  scale = parse_float(*args[2]);
-
-  array_add(*objects, Object.{name="STL model"});
-  stl_object := *objects[objects.count-1];
-  stl_object.mesh = load_mesh_from_stl_file(filename, scale=scale);
-  //stl_object.mesh = make_test_cube(side_length=scale);
-
-  array_add(*objects, Object.{name="Floor"});
-  floor_object := *objects[objects.count-1];
-  floor_object.mesh = load_mesh_from_stl_file("assets/floor_big.stl");
-
-  initialize_scene();  // After loading some meshes, set their other properties. 
+  initialize_scene();  // Load meshes and set their properties
 
   camera.position = .{ -30, -30, 4 };
   camera.euler_angles = .{ 0, 0, 0.2 };
@@ -162,7 +175,7 @@ main :: () {
     Windows.timeBeginPeriod(1);
   }
 
-  window = create_window(window_width, window_height, "Motive Engine", wanted_msaa=4);
+  window = create_window(window_width, window_height, "Source 3", wanted_msaa=4);
   actual_msaa_level := Simp.prepare_window(window, wanted_msaa=4);
   window_width, window_height = Simp.get_render_dimensions(window);
   Simp.set_render_target(window, .LEFT_HANDED);
@@ -331,7 +344,6 @@ render_one_frame :: (dt: float) {
   for object: objects {
     render_object(object, camera);
   }
-  //render_mesh(mesh_transform);
 
   Simp.swap_buffers(window);
 }
@@ -359,8 +371,7 @@ render_object :: (using object: Object, camera: Camera) {
 }
 
 initialize_renderer :: () {
-  // should this stay global? do we need to keep track of it at the top level?
-  mesh_shader_program = compile_and_link_shader_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
+  mesh_shader_program := compile_and_link_shader_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
 
   for * object: objects {
     object.mesh_shader_program = mesh_shader_program;

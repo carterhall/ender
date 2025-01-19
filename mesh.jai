@@ -13,6 +13,10 @@ Mesh :: struct {   // We are always using this as a *triangle* mesh.
   inertia_tensor: Matrix3;
 }
 
+initialized :: (mesh: Mesh) -> bool {
+  return mesh.vertices.count != 0;
+}
+
 // This function seems like the right API, but I don't love how it's basically just 
 // orchestrating these other functions
 load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
@@ -268,6 +272,8 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
     translation := -total_center_of_mass;
     total_covariance += total_volume * outer_product(translation, translation);
   }
+
+  //total_covariance *= -1;
 
   trace_of_covariance := total_covariance._11 + total_covariance._22 + total_covariance._33;
   inertia_tensor_without_density := Matrix3_Identity*trace_of_covariance - total_covariance;
