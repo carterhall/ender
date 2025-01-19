@@ -42,7 +42,7 @@ camera: Camera;
 view_projection_matrix: Matrix4;
 
 sunlight_intensity := 100.0;
-sunlight_direction :: #run normalize(Vector3.{ 0, 1, 1 });
+sunlight_direction :: #run normalize(Vector3.{ 1.5, 1.3, 1 });
 //sunlight_direction :: #run normalize(Vector3.{ 0, 1, 0 });
 
 sky_color :: Vector3.{100.0/256, 107.0/256, 120.0/256};
@@ -216,6 +216,18 @@ simulate_physics :: (dt: float) {
     if enable_movement_physics {
       //velocity += Vector3.{0, 0, -9.8*dt};  // Gravity
 
+      {
+        // @Temporary
+        using Input;
+        inputs := Input.input_button_states;
+        OBJECT_MOVEMENT_SPEED :: 25.0; // m/s
+        if inputs[#char "J"] && !inputs[#char "K"] {
+          transform.position.y -= OBJECT_MOVEMENT_SPEED*dt;
+        } else if !inputs[#char "J"] && inputs[#char "K"] {
+          transform.position.y += OBJECT_MOVEMENT_SPEED*dt;
+        }
+      }
+
       transform.position += velocity*dt;
 
       // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
@@ -330,7 +342,8 @@ render_object :: (using object: Object, camera: Camera) {
   model_translation := make_translation_matrix4(transform.position);
   model_matrix := model_translation * model_rotation;
 
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_matrix"), 1, GL_TRUE, *model_matrix.coef[0][0]); 
+  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_rotation"), 1, GL_TRUE, *model_rotation.coef[0][0]); 
+  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_translation"), 1, GL_TRUE, *model_translation.coef[0][0]); 
   glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "view_projection_matrix"), 1, GL_TRUE, *view_projection_matrix.coef[0][0]);
 
   // 3 floats in memory (glUniform3f takes separate args for each float)
@@ -368,6 +381,33 @@ initialize_renderer :: () {
   }
 }
 
+VERTEX_SHADER_SOURCE :: #string END
+  #version 330 core
+
+  // The input vertex position (this is a vertex attribute, per-vertex info)
+  // This doesn't receive data automatically - we have to attach the VERTEX ATTRIBUTE to a VERTEX BUFFER.
+  // The VERTEX BUFFER is where we can write data on the CPU side, to send that data to the GPU.
+
+  layout(location=0) in vec3 position;   
+  layout(location=1) in vec3 normal;   
+
+  out vec3 normal_for_color;
+
+  //uniform mat4 model_matrix;  // model space -> world space
+  uniform mat4 model_rotation;  // model space -> world space
+  uniform mat4 model_translation;  // model space -> world space
+  uniform mat4 view_projection_matrix;  // world space -> canonical view volume
+
+  void main() {
+    // gl_Position is *the* required output of a vertex shader
+    mat4 model_matrix = model_translation * model_rotation;
+    gl_Position = view_projection_matrix * model_matrix * vec4(position, 1);
+
+    normal_for_color = (model_rotation * vec4(normal, 1)).xyz;
+    normal_for_color = normal_for_color / length(normal_for_color);
+  }
+END
+
 FRAGMENT_SHADER_SOURCE :: #string END
   #version 330 core
 
@@ -387,31 +427,7 @@ FRAGMENT_SHADER_SOURCE :: #string END
 
     color = object_base_color;
     color = color * sunlight_intensity/100;
-    color = color * dot(normal_for_color, sunlight_direction);
-  }
-END
-
-VERTEX_SHADER_SOURCE :: #string END
-  #version 330 core
-
-  // The input vertex position (this is a vertex attribute, per-vertex info)
-  // This doesn't receive data automatically - we have to attach the VERTEX ATTRIBUTE to a VERTEX BUFFER.
-  // The VERTEX BUFFER is where we can write data on the CPU side, to send that data to the GPU.
-
-  layout(location=0) in vec3 position;   
-  layout(location=1) in vec3 normal;   
-
-  out vec3 normal_for_color;
-
-  uniform mat4 model_matrix;  // model space -> world space
-  uniform mat4 view_projection_matrix;  // world space -> canonical view volume
-
-  void main() {
-    // gl_Position is *the* required output of a vertex shader
-    gl_Position = view_projection_matrix * model_matrix * vec4(position, 1);
-
-    normal_for_color = (model_matrix * vec4(normal, 1)).xyz;
-    normal_for_color = normal_for_color / length(normal_for_color);
+    color = color * (0.4*dot(normal_for_color, sunlight_direction) + 0.6);
   }
 END
 
