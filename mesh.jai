@@ -229,16 +229,45 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
 
   print("Total:\n  CoM %\n  volume %\n  cov %\n\n", total_center_of_mass, total_volume, total_covariance);
 
-  /*   TODO
+
+
+  /*
+
+  TRANSLATION PART:
+
+  """
+  At this point, the covariance of C_total is still computed around our arbitrary reference point. 
+  We want to move it to the center of mass, since that is where a physics simulator is most likely to want it:
+
+    C'_total = Translate(C_total, w0 − x_cm_total)
+  """
+
+  w0, the arbitrary reference point, was chosen to be 0, the origin.
+
+  So we are looking at Translate(C_total, -x_cm_total).
+
+  What is the definition of Translate?
+  
+    C' = Translate(C,Δx) = C + m*(Δx*x_cm^T +x_cm*Δx^T +Δx*Δx^T)
+
+  We're factoring out density, so m => V in the above equation.
+
+  x_cm is "the center of mass of the points used to construct C", which is 0 here, right?
+
+  So the first two terms drop out, and only the third remains?
+
+  So for this purpose it simplifies to 
+
+    C' = Translate(C,Δx) = C + V*Δx*Δx^T
+
+  Which is actually what Claude had told us! It's the parallel axis theorem.
+  */
+
   {
     // Translate the total covariance matrix, per equations (8) in the paper
-    dx := -total_center_of_mass;
-    //x_cm := canonical_tetrahedron_center_of_mass;
-    x_cm := total_center_of_mass;
-    //total_covariance -= total_volume * outer_product(translation, translation);
-    total_covariance += total_volume * (outer_product(dx,x_cm) + outer_product(x_cm,dx) + outer_product(dx,dx));
+    translation := -total_center_of_mass;
+    total_covariance += total_volume * outer_product(translation, translation);
   }
-  */
 
   trace_of_covariance := total_covariance._11 + total_covariance._22 + total_covariance._33;
   inertia_tensor_without_density := Matrix3_Identity*trace_of_covariance - total_covariance;
