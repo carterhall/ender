@@ -80,6 +80,7 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> M
   // This is the explicit formula for the inertia tensor of a cube, useful for sanity
   // checking our rotation code without involving our inertia tensor calculation.
   //inertia_tensor = volume * side_length/6.0 * Matrix3_Identity;
+  print("Explicit cube inertia tensor:\n  %\n", volume * side_length/6.0 * Matrix3_Identity);
 
   // from   inertia_tensor = Matrix3_Identity*trace(C) - C,
   // C must be 1/12 * Matrix3_Identity.
@@ -87,7 +88,7 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> M
   mesh.inertia_tensor = inertia_tensor;
   for * mesh.vertices  it.position -= _center_of_mass; 
 
-  print("Test cube has center of mass %, inertia tensor %, volume %\n", _center_of_mass, inertia_tensor, volume);
+  print("Test cube has center of mass %, volume %, inertia tensor:\n  %\n\n", _center_of_mass, volume, inertia_tensor);
 
   return mesh;
 }
@@ -215,8 +216,12 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
 
     tetrahedron_center_of_mass := (tetrahedron.v2 + tetrahedron.v3 + tetrahedron.v4)/4;
 
-    sign_change := sign(volume(tetrahedron)) * sign(dot_product(tetrahedron.v2, normal));
-    tetrahedron_volume := sign_change * volume(tetrahedron);
+    //sign_change := sign(volume(tetrahedron)) * sign(dot_product(tetrahedron.v2, normal));
+    //tetrahedron_volume := sign_change * volume(tetrahedron);
+    
+    A := make_A_matrix(tetrahedron);
+    sign_change := sign(determinant(A)) * sign(dot_product(tetrahedron.v2, normal));
+    tetrahedron_volume := sign_change * determinant(A) / 6.0;
 
     print("Tetrahedron %, CoM %, volume %\n", i, tetrahedron_center_of_mass, tetrahedron_volume);
 
@@ -224,14 +229,13 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
     total_center_of_mass += tetrahedron_center_of_mass * tetrahedron_volume;
 
     tetrahedron_covariance := sign_change * covariance_of_tetrahedron(tetrahedron);
+    //tetrahedron_covariance := covariance_of_tetrahedron(tetrahedron);
     total_covariance += tetrahedron_covariance;
   }
 
   if total_volume != 0.0 {
     total_center_of_mass /= total_volume;
   }
-
-  print("Total:\n  CoM %\n  volume %\n  cov %\n\n", total_center_of_mass, total_volume, total_covariance);
 
 
 
@@ -267,13 +271,22 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
   Which is actually what Claude had told us! It's the parallel axis theorem.
   */
 
+  print("Total:\n  CoM %\n  volume %\n  cov %\n\n", total_center_of_mass, total_volume, total_covariance);
   {
     // Translate the total covariance matrix, per equations (8) in the paper
-    translation := -total_center_of_mass;
-    total_covariance += total_volume * outer_product(translation, translation);
+    //translation := -total_center_of_mass;
+    //total_covariance += total_volume * outer_product(translation, translation);
+
+    // There is no reason behind this whatsoever, I just flipped some signs to see
+    // if it worked
+    translation := total_center_of_mass;
+    total_covariance -= total_volume * outer_product(translation, translation);
+
   }
+  print("after translate,\n  cov %\n\n", total_covariance);
 
   //total_covariance *= -1;
+
 
   trace_of_covariance := total_covariance._11 + total_covariance._22 + total_covariance._33;
   inertia_tensor_without_density := Matrix3_Identity*trace_of_covariance - total_covariance;

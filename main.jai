@@ -123,12 +123,12 @@ initialize_scene :: () {
   {
     using stl_object := make_or_get_object("STL model");
     if !initialized(mesh)  mesh = load_mesh_from_stl_file(stl_object_filename, scale=stl_object_scale);
-    transform.position = .{ 0, 0, 3 };
+    transform.position = .{ 0, 0, 4 };
     transform.rotation = .{};
     velocity = .{};
     //angular_momentum = .{70, 600, 130} * 3.0;
-    //angular_momentum = .{1300, 30, 0};
-    angular_momentum = .{-100, 1300, 100};
+    //angular_momentum = .{1300, 10, 0};
+    angular_momentum = .{-50, 1300, 80};
     color = .{ 0.6, 0.2, 0.2 };
     density = density_of(.PLA);
   }
@@ -136,7 +136,7 @@ initialize_scene :: () {
   {
     using test_cube := make_or_get_object("test cube");
     if !initialized(mesh)  mesh = make_test_cube(side_length=1.0);
-    transform.position = .{ 0, 4, 3 };
+    transform.position = .{ 0, 6, 4 };
     transform.rotation = .{};
     velocity = .{};
     angular_momentum = .{-100, 1300, 100};
@@ -233,7 +233,9 @@ simulate_physics :: (dt: float) {
       // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
       R := rotation_matrix(Matrix3, transform.rotation);  
 
-      w := R * inverse(mesh.inertia_tensor * density) * transpose(R) * angular_momentum;
+      //print("object %:\n  int = %\n  inv = %\n", name, mesh.inertia_tensor, inverse(mesh.inertia_tensor));
+      //w := R * inverse(mesh.inertia_tensor) * transpose(R) * angular_momentum * (1.0/density);
+      w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
 
       rotation_change: Quaternion;
       set_from_axis_and_angle(*rotation_change, w, dt*length(w));
