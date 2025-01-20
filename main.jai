@@ -38,13 +38,15 @@ window: Window_Type;
 window_width  := cast(s32) 2560;
 window_height := cast(s32) 1600;
 
+objects: [..] Object;
+
 camera: Camera;
 view_projection_matrix: Matrix4;
 
 sunlight_intensity := 200.0;
 sunlight_direction :: #run normalize(Vector3.{ 1.5, 1.3, 1 });
 
-sky_color :: Vector3.{100.0/256, 107.0/256, 120.0/256};
+sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 0.8;
 
 stl_object_scale := 1.0;  // Global so we can keep changing this for diff meshes easily
 stl_object_filename := "";
@@ -100,8 +102,6 @@ density_of :: (material: Material) -> float {  // in kg/m^3
   return 1000.0;
 }
 
-objects: [..] Object;
-
 get_object :: (name: string) -> *Object {
   for * objects {
     if it.name == name {
@@ -122,7 +122,6 @@ make_or_get_object :: (name: string) -> *Object {
 initialize_scene :: () {
   {
     using stl_object := make_or_get_object("STL model");
-    print("stl: %\n", stl_object);
     if !initialized(mesh)  mesh = load_mesh_from_stl_file(stl_object_filename, scale=stl_object_scale);
     transform.position = .{ 0, 0, 3 };
     transform.rotation = .{};
@@ -136,7 +135,6 @@ initialize_scene :: () {
 
   {
     using test_cube := make_or_get_object("test cube");
-    print("cube: %\n", test_cube);
     if !initialized(mesh)  mesh = make_test_cube(side_length=1.0);
     transform.position = .{ 0, 4, 3 };
     transform.rotation = .{};
@@ -166,8 +164,8 @@ main :: () {
 
   initialize_scene();  // Load meshes and set their properties
 
-  camera.position = .{ -30, -30, 4 };
-  camera.euler_angles = .{ 0, 0, 0.2 };
+  camera.position = .{ -10, -5, 4 };
+  camera.euler_angles = .{ 0, 0, 0.3 };
 
   #if OS == .WINDOWS {
     Windows :: #import "Windows";
@@ -230,25 +228,12 @@ simulate_physics :: (dt: float) {
     if enable_movement_physics {
       //velocity += Vector3.{0, 0, -9.8*dt};  // Gravity
 
-      {
-        // @Temporary
-        using Input;
-        inputs := Input.input_button_states;
-        OBJECT_MOVEMENT_SPEED :: 25.0; // m/s
-        if inputs[#char "J"] && !inputs[#char "K"] {
-          transform.position.y -= OBJECT_MOVEMENT_SPEED*dt;
-        } else if !inputs[#char "J"] && inputs[#char "K"] {
-          transform.position.y += OBJECT_MOVEMENT_SPEED*dt;
-        }
-      }
-
       transform.position += velocity*dt;
 
       // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
       R := rotation_matrix(Matrix3, transform.rotation);  
 
       w := R * inverse(mesh.inertia_tensor * density) * transpose(R) * angular_momentum;
-      //w := R * inverse(mesh.inertia_tensor) * transpose(R) * angular_momentum;
 
       rotation_change: Quaternion;
       set_from_axis_and_angle(*rotation_change, w, dt*length(w));
@@ -300,7 +285,7 @@ update_camera :: (dt: float) {
   if inputs[#char "C"] sunlight_intensity += 100.0*dt;
 
   camera_movement := dt * CAMERA_MOVEMENT_SPEED * normalize(camera_velocity);
-  //rotate(*camera_movement, camera.rotation);
+
   // Rotate movement by yaw, but not by pitch - it feels more natural to go up the 
   // up global z axis when you press shift, rather than object-local z axis
   rotate(*camera_movement, yaw);  
@@ -318,6 +303,7 @@ update_camera :: (dt: float) {
   // to change minus-z-forward to x-forward. I guess that's what we want to do here?
 
   // using 73 as the vertical FOV (close to csgo)
+  // Not sure if the other constants are optimal - look back at the impl at some point
   projection_matrix := make_projection_matrix(73.0*PI/180.0, 16.0/9.0, 0.1, 1000.0);
 
   // We need this correction matrix to 'fix' the axes going into the projection,
@@ -407,7 +393,6 @@ VERTEX_SHADER_SOURCE :: #string END
 
   out vec3 normal_for_color;
 
-  //uniform mat4 model_matrix;  // model space -> world space
   uniform mat4 model_rotation;  // model space -> world space
   uniform mat4 model_translation;  // model space -> world space
   uniform mat4 view_projection_matrix;  // world space -> canonical view volume
