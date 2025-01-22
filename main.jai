@@ -131,9 +131,11 @@ initialize_scene :: () {
     //angular_momentum = .{70, 600, 130} * 3.0;
     //angular_momentum = .{1300, 10, 0};
 
-    angular_momentum = .{1, 1300, -1};
+    //angular_momentum = .{1, 1300, -1};
     //angular_momentum = .{1300, 10, -10};
     //angular_momentum = .{10, -10, 1300};
+
+    angular_momentum = .{0, 1000, 0};
 
     color = .{ 0.6, 0.2, 0.2 };
     density = density_of(.PLA);
@@ -145,7 +147,7 @@ initialize_scene :: () {
     transform.position = .{ 0, 6, 4 };
     transform.rotation = .{};
     velocity = .{};
-    angular_momentum = .{-100, 1300, 100};
+    angular_momentum = .{-10, 130, 10};
     color = .{ 0.2, 0.2, 0.6 };
     density = density_of(.PLA);
   }
@@ -241,57 +243,51 @@ simulate_physics :: (dt: float) {
     using object;
 
     if enable_movement_physics {
-      //velocity += Vector3.{0, 0, -9.8*dt};  // Gravity
+      R := rotation_matrix(Matrix3, transform.rotation);  
+
+      net_force := Vector3.{0, 0, 0};
+      net_torque := Vector3.{};
+
+      lowest_vertex := Vector3.{};
+      for vertex: mesh.vertices {
+        worldspace_pos := R*vertex.position + transform.position;
+        if worldspace_pos.z < lowest_vertex.z {
+          lowest_vertex.z = worldspace_pos.z;
+        }
+      }
+
+      if lowest_vertex.z < 0.0 {
+        //velocity.z = max(velocity.z, 0);
+        z := lowest_vertex.z;
+
+        //collision_force := Vector3.{0, 0, 10000.0 * abs(z*z*z)};
+        //net_force += collision_force;
+
+        velocity.z = 0.999*abs(z);
+
+        lever_arm := transform.position - lowest_vertex;
+        //lever_arm := lowest_vertex - transform.position;
+        //net_torque += cross_product(lever_arm, collision_force);
+
+        transform.position.z += abs(z);
+      }
+
+      angular_momentum += net_torque;
+
+      velocity += .{0, 0, -9.8}*dt;
+
+      velocity += dt*(net_force / (density * mesh.volume));
+      //print("obj %: pos %, vel %, net force %\n", name, transform.position, velocity, net_force);
+
 
       transform.position += velocity*dt;
 
       // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
-      R := rotation_matrix(Matrix3, transform.rotation);  
-
-      //print("object %:\n  int = %\n  inv = %\n", name, mesh.inertia_tensor, inverse(mesh.inertia_tensor));
-      //w := R * inverse(mesh.inertia_tensor) * transpose(R) * angular_momentum * (1.0/density);
-
-      //fake_inertia := Matrix3.{};
-      //fake_inertia._11 = 0.192893;
-      //fake_inertia._22 = 0.209010;
-      //fake_inertia._33 = 0.076723;
-
-
       w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
-      //w := R * inverse(fake_inertia) * transpose(R) * angular_momentum;
 
       rotation_change: Quaternion;
       set_from_axis_and_angle(*rotation_change, w, dt*length(w));
       transform.rotation = rotation_change * transform.rotation;
-
-      
-      /*
-      L_body := transpose(R) * angular_momentum;
-      w_body := inverse(density * mesh.inertia_tensor) * L_body;
-
-      w_quat: Quaternion;
-      set_from_axis_and_angle(*w_quat, w_body, length(w_body));
-      q_dot := 0.5 * w_quat * transform.rotation;
-      transform.rotation += dt*q_dot;
-      */
-
-
-      /*
-      skew_symmetric :: (v: Vector3) -> Matrix3 {
-        m: Matrix3;
-        m._12 = -v.z;
-        m._13 = v.y;
-        m._21 = v.z;
-        m._23 = -v.x;
-        m._31 = -v.y;
-        m._32 = v.x;
-        return m;
-      }
-      
-      R += dt * skew_symmetric(w) * R;
-      transform.rotation = get_rotation(R);
-      */
-
       normalize_or_identity(*transform.rotation);
     }
   }
@@ -446,6 +442,7 @@ VERTEX_SHADER_SOURCE :: #string END
   layout(location=1) in vec3 normal;   
 
   out vec3 normal_for_color;
+  out vec3 position_in_modelspace_for_checkerboard;
 
   uniform mat4 model_rotation;  // model space -> world space
   uniform mat4 model_translation;  // model space -> world space
@@ -458,6 +455,8 @@ VERTEX_SHADER_SOURCE :: #string END
 
     normal_for_color = (model_rotation * vec4(normal, 1)).xyz;
     normal_for_color = normal_for_color / length(normal_for_color);
+
+    position_in_modelspace_for_checkerboard = position;
   }
 END
 
@@ -467,7 +466,7 @@ FRAGMENT_SHADER_SOURCE :: #string END
   // Is this output position automatically used for color? TODO
   layout(location=0) out vec4 color; 
 
-  in vec4 position_for_color;
+  in vec3 position_in_modelspace_for_checkerboard;
   uniform vec4 object_base_color;
 
   uniform float sunlight_intensity;
@@ -476,9 +475,16 @@ FRAGMENT_SHADER_SOURCE :: #string END
   in vec3 normal_for_color;
 
   void main() {
-    //color = position_for_color; // multicolor for debugging
+    vec3 modelspace_pos = position_in_modelspace_for_checkerboard;
+    int x_floored = int(floor(3 * modelspace_pos.x));
+    int y_floored = int(floor(3 * modelspace_pos.y));
 
-    color = object_base_color;
+    if (x_floored % 2 == 0 ^^ y_floored % 2 == 0) {
+      color = object_base_color * 0.95;
+    } else {
+      color = object_base_color;
+    }
+
     color = color * sunlight_intensity/100;
     color = color * (0.4*dot(normal_for_color, sunlight_direction) + 0.6);
   }

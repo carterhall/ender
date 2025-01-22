@@ -11,6 +11,8 @@ Mesh :: struct {   // We are always using this as a *triangle* mesh.
   vertices: [..] Vertex;
 
   inertia_tensor: Matrix3;
+  center_of_mass: Vector3;
+  volume: float;
 }
 
 initialized :: (mesh: Mesh) -> bool {
@@ -27,6 +29,8 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
   inertia_tensor, center_of_mass, volume := mass_properties_of_triangle_mesh(mesh);
 
   mesh.inertia_tensor = inertia_tensor;
+  mesh.center_of_mass = center_of_mass;
+  mesh.volume = volume;
   for * mesh.vertices  it.position -= center_of_mass; 
 
   print("Mesh % has center of mass %, inertia tensor %, volume %\n", file_path, center_of_mass, inertia_tensor, volume);
@@ -86,6 +90,8 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> M
   // C must be 1/12 * Matrix3_Identity.
 
   mesh.inertia_tensor = inertia_tensor;
+  mesh.center_of_mass = center_of_mass;
+  mesh.volume = volume;
   for * mesh.vertices  it.position -= _center_of_mass; 
 
   print("Test cube has center of mass %, volume %, inertia tensor:\n  %\n\n", _center_of_mass, volume, inertia_tensor);
