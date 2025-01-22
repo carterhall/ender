@@ -51,6 +51,8 @@ sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 0.8;
 stl_object_scale := 1.0;  // Global so we can keep changing this for diff meshes easily
 stl_object_filename := "";
 
+DT_PHYSICS :: 0.001;
+
 // Don't want to use a general Transform for the camera; it's better to use
 // Euler angles to store the current rotation state, and generate the quaternion 
 // based on that, rather than updating a quaternion based on current controls.
@@ -128,7 +130,11 @@ initialize_scene :: () {
     velocity = .{};
     //angular_momentum = .{70, 600, 130} * 3.0;
     //angular_momentum = .{1300, 10, 0};
-    angular_momentum = .{-50, 1300, 80};
+
+    angular_momentum = .{1, 1300, -1};
+    //angular_momentum = .{1300, 10, -10};
+    //angular_momentum = .{10, -10, 1300};
+
     color = .{ 0.6, 0.2, 0.2 };
     density = density_of(.PLA);
   }
@@ -183,6 +189,9 @@ main :: () {
   this_frame_start_time := current_time_monotonic();
   last_frame_start_time := this_frame_start_time;
 
+  //physics_time := this_frame_start_time;
+  physics_lag := 0.0;
+
   should_exit := false;
   while !should_exit {
     using Input;
@@ -192,6 +201,7 @@ main :: () {
     last_frame_start_time = this_frame_start_time;
     this_frame_start_time = current_time_monotonic();
     dt := cast(float) to_float64_seconds(this_frame_start_time - last_frame_start_time);
+    physics_lag += dt;
 
     Input.update_window_events();
 
@@ -212,7 +222,12 @@ main :: () {
       }
     }
 
-    simulate_physics(dt);
+    //while physics_time < this_frame_start_time - DT_PHYSICS {
+    while (physics_lag > DT_PHYSICS) {
+      simulate_physics(DT_PHYSICS);
+      physics_lag -= DT_PHYSICS;
+    }
+
     update_camera(dt);
     render_one_frame(dt);
 
@@ -235,11 +250,48 @@ simulate_physics :: (dt: float) {
 
       //print("object %:\n  int = %\n  inv = %\n", name, mesh.inertia_tensor, inverse(mesh.inertia_tensor));
       //w := R * inverse(mesh.inertia_tensor) * transpose(R) * angular_momentum * (1.0/density);
+
+      //fake_inertia := Matrix3.{};
+      //fake_inertia._11 = 0.192893;
+      //fake_inertia._22 = 0.209010;
+      //fake_inertia._33 = 0.076723;
+
+
       w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
+      //w := R * inverse(fake_inertia) * transpose(R) * angular_momentum;
 
       rotation_change: Quaternion;
       set_from_axis_and_angle(*rotation_change, w, dt*length(w));
-      transform.rotation *= rotation_change;
+      transform.rotation = rotation_change * transform.rotation;
+
+      
+      /*
+      L_body := transpose(R) * angular_momentum;
+      w_body := inverse(density * mesh.inertia_tensor) * L_body;
+
+      w_quat: Quaternion;
+      set_from_axis_and_angle(*w_quat, w_body, length(w_body));
+      q_dot := 0.5 * w_quat * transform.rotation;
+      transform.rotation += dt*q_dot;
+      */
+
+
+      /*
+      skew_symmetric :: (v: Vector3) -> Matrix3 {
+        m: Matrix3;
+        m._12 = -v.z;
+        m._13 = v.y;
+        m._21 = v.z;
+        m._23 = -v.x;
+        m._31 = -v.y;
+        m._32 = v.x;
+        return m;
+      }
+      
+      R += dt * skew_symmetric(w) * R;
+      transform.rotation = get_rotation(R);
+      */
+
       normalize_or_identity(*transform.rotation);
     }
   }

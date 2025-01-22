@@ -223,7 +223,7 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
     sign_change := sign(determinant(A)) * sign(dot_product(tetrahedron.v2, normal));
     tetrahedron_volume := sign_change * determinant(A) / 6.0;
 
-    print("Tetrahedron %, CoM %, volume %\n", i, tetrahedron_center_of_mass, tetrahedron_volume);
+    //print("Tetrahedron %, CoM %, volume %\n", i, tetrahedron_center_of_mass, tetrahedron_volume);
 
     total_volume += tetrahedron_volume;
     total_center_of_mass += tetrahedron_center_of_mass * tetrahedron_volume;
