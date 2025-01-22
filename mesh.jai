@@ -106,30 +106,10 @@ stl_model_to_mesh :: (model: STL_Model, scale := 1.0) -> Mesh {
   mesh: Mesh;
   array_resize(*mesh.vertices, 3*model.facets.count);
 
-  min_coords := model.facets[0].v1;
-  max_coords := model.facets[0].v1;
   for i: 0..mesh.vertices.count-1 {
     mesh.vertices[i].position = <<(*model.facets[i/3].v1 + (i%3)) * scale;
     mesh.vertices[i].normal = model.facets[i/3].normal;
-
-    // Keep track of extreme values in each dimension
-    min_coords.x = min(mesh.vertices[i].position.x, min_coords.x);
-    min_coords.y = min(mesh.vertices[i].position.y, min_coords.y);
-    min_coords.z = min(mesh.vertices[i].position.z, min_coords.z);
-    max_coords.x = max(mesh.vertices[i].position.x, max_coords.x);
-    max_coords.y = max(mesh.vertices[i].position.y, max_coords.y);
-    max_coords.z = max(mesh.vertices[i].position.z, max_coords.z);
   }
-
-  #if false {
-    for i: 0..mesh.vertices.count-1 {  
-      mesh.vertices[i].position.x -= (max_coords.x - min_coords.x) / 2.0;
-      mesh.vertices[i].position.y -= (max_coords.y - min_coords.y) / 2.0;
-      mesh.vertices[i].position.z -= (max_coords.z - min_coords.z) / 2.0;
-    }
-  }
-
-  print("Min and max coords: % %\n", min_coords, max_coords);
 
   return mesh;
 }
@@ -336,12 +316,6 @@ volume :: (tetrahedron: Tetrahedron) -> float {
   );
   return determinant(m) / 6.0;
 }
-
-// Specific volume calculation from the non-Jon paper; hopefully the signs will
-// work out better....
-//volume2 :: (tetrahedron: Tetrahedron) -> float {
-//
-//}
 
 #import "Basic";
 #import "File";

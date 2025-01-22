@@ -132,10 +132,10 @@ initialize_scene :: () {
     //angular_momentum = .{1300, 10, 0};
 
     //angular_momentum = .{1, 1300, -1};
-    //angular_momentum = .{1300, 10, -10};
+    angular_momentum = .{1300, 10, -10};
     //angular_momentum = .{10, -10, 1300};
 
-    angular_momentum = .{0, 1000, 0};
+    //angular_momentum = .{0, 1000, 0};
 
     color = .{ 0.6, 0.2, 0.2 };
     density = density_of(.PLA);
@@ -274,7 +274,7 @@ simulate_physics :: (dt: float) {
 
       angular_momentum += net_torque;
 
-      velocity += .{0, 0, -9.8}*dt;
+      //velocity += .{0, 0, -9.8}*dt;
 
       velocity += dt*(net_force / (density * mesh.volume));
       //print("obj %: pos %, vel %, net force %\n", name, transform.position, velocity, net_force);
@@ -403,6 +403,8 @@ render_object :: (using object: Object, camera: Camera) {
 
   glUniform4fv(glGetUniformLocation(mesh_shader_program, "object_base_color"), 1, cast(*float) *color);
 
+  glUniform1i(glGetUniformLocation(mesh_shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
+
   glDrawArrays(GL_TRIANGLES, 0, cast(u32) mesh.vertices.count);
 }
 
@@ -467,6 +469,8 @@ FRAGMENT_SHADER_SOURCE :: #string END
   layout(location=0) out vec4 color; 
 
   in vec3 position_in_modelspace_for_checkerboard;
+  uniform bool use_checkerboard;
+
   uniform vec4 object_base_color;
 
   uniform float sunlight_intensity;
@@ -475,14 +479,15 @@ FRAGMENT_SHADER_SOURCE :: #string END
   in vec3 normal_for_color;
 
   void main() {
-    vec3 modelspace_pos = position_in_modelspace_for_checkerboard;
-    int x_floored = int(floor(3 * modelspace_pos.x));
-    int y_floored = int(floor(3 * modelspace_pos.y));
-
-    if (x_floored % 2 == 0 ^^ y_floored % 2 == 0) {
-      color = object_base_color * 0.95;
-    } else {
-      color = object_base_color;
+    // Look at coords within the model to apply a checkerboard "texture"
+    color = object_base_color;
+    if (use_checkerboard) {
+      vec3 modelspace_pos = position_in_modelspace_for_checkerboard;
+      int x_floored = int(floor(3 * modelspace_pos.x));
+      int y_floored = int(floor(3 * modelspace_pos.y));
+      if (x_floored % 2 == 0 ^^ y_floored % 2 == 0) {
+        color = object_base_color * 0.95;
+      }
     }
 
     color = color * sunlight_intensity/100;
