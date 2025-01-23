@@ -43,13 +43,15 @@ objects: [..] Object;
 camera: Camera;
 view_projection_matrix: Matrix4;
 
-sunlight_intensity := 200.0;
+sunlight_intensity := 160.0;
 sunlight_direction :: #run normalize(Vector3.{ 1.5, 1.3, 1 });
 
-sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 0.8;
+sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 1.1;
 
 stl_object_scale := 1.0;  // Global so we can keep changing this for diff meshes easily
 stl_object_filename := "";
+
+initialize_scene_function: () -> ();
 
 DT_PHYSICS :: 0.001;
 
@@ -121,56 +123,16 @@ make_or_get_object :: (name: string) -> *Object {
   return *objects[objects.count - 1];
 }
 
-initialize_scene :: () {
-  {
-    using stl_object := make_or_get_object("STL model");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file(stl_object_filename, scale=stl_object_scale);
-    transform.position = .{ 0, 0, 4 };
-    transform.rotation = .{};
-    velocity = .{};
-    //angular_momentum = .{70, 600, 130} * 3.0;
-    //angular_momentum = .{1300, 10, 0};
-
-    //angular_momentum = .{1, 1300, -1};
-    angular_momentum = .{1300, 10, -10};
-    //angular_momentum = .{10, -10, 1300};
-
-    //angular_momentum = .{0, 1000, 0};
-
-    color = .{ 0.6, 0.2, 0.2 };
-    density = density_of(.PLA);
-  }
-
-  {
-    using test_cube := make_or_get_object("test cube");
-    if !initialized(mesh)  mesh = make_test_cube(side_length=1.0);
-    transform.position = .{ 0, 6, 4 };
-    transform.rotation = .{};
-    velocity = .{};
-    angular_momentum = .{-10, 130, 10};
-    color = .{ 0.2, 0.2, 0.6 };
-    density = density_of(.PLA);
-  }
-
-  {
-    using floor_object := make_or_get_object("Floor");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/floor_big.stl");
-    color = 0.8 * sky_color;
-    enable_movement_physics = false;
-  }
-}
-
 main :: () {
-  args := get_command_line_arguments();
-  if args.count < 2 {
-    log_error("Usage: % <STL filename> <optional model scaling factor>", args[0]);
-    return;
-  }
+  initialize_scene_function = initialize_scene_1;
 
-  stl_object_filename = args[1];
-  if args.count > 2  stl_object_scale = parse_float(*args[2]);
+  //args := get_command_line_arguments();
+  //if args.count < 2 {
+  //  log_error("Usage: % <STL filename> <optional model scaling factor>", args[0]);
+  //  return;
+  //}
 
-  initialize_scene();  // Load meshes and set their properties
+  initialize_scene_function();  // Load meshes and set their properties
 
   camera.position = .{ -10, -5, 4 };
   camera.euler_angles = .{ 0, 0, 0.3 };
@@ -198,7 +160,7 @@ main :: () {
   while !should_exit {
     using Input;
     inputs := Input.input_button_states;
-    if inputs[#char "R"] initialize_scene();   // Reset
+    if inputs[#char "R"] initialize_scene_function();   // Reset
 
     last_frame_start_time = this_frame_start_time;
     this_frame_start_time = current_time_monotonic();
@@ -294,7 +256,7 @@ simulate_physics :: (dt: float) {
 }
 
 update_camera :: (dt: float) {
-  CAMERA_MOVEMENT_SPEED :: 25.0; // m/s
+  CAMERA_MOVEMENT_SPEED :: 10.0; // m/s
   CAMERA_ROTATION_SPEED :: 180.0 * TAU/360.0; // rad/s
 
   using Input;
@@ -545,6 +507,7 @@ compile_and_link_shader_program :: (vertex_shader_source: string, fragment_shade
 }
 
 #load "mesh.jai";
+#load "scenes.jai";
 
 #import "Basic";
 #import "GL";

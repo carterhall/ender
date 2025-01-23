@@ -155,6 +155,11 @@ load_stl_model :: (file_path: string) -> STL_Model {
 }
 
 
+// Note: used this as a reference alongside Jon's paper. This was necessary to 
+// get the right signs on the volumes of the tetrahedra.
+// http://chenlab.ece.cornell.edu/Publication/Cha/icip01_Cha.pdf
+// EFFICIENT FEATURE EXTRACTION FOR 2D/3D OBJECTS IN MESH REPRESENTATION
+
 make_A_matrix :: (tetrahedron: Tetrahedron) -> Matrix3 {
   A := make_matrix_from_columns(
     tetrahedron.v2 - tetrahedron.v1,
