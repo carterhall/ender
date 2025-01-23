@@ -1,4 +1,4 @@
-main :: () {
+test :: () {
   using mesh: Mesh;
 
   corners := Vector3.[
@@ -17,6 +17,8 @@ main :: () {
   inertia, center := mass_properties_of_triangle_mesh(mesh);
   print("Center = %\n", center);
 }
+
+#run test();
 
 #load "../mesh.jai";
 #import "Basic";
