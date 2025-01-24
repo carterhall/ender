@@ -51,7 +51,7 @@ sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 1.1;
 enable_gravity := false;
 paused := false;
 
-initialize_scene_function: () -> ();
+initialize_scene_function: () -> () = default_scene;
 
 DT_PHYSICS :: 0.001;
 
@@ -124,8 +124,6 @@ make_or_get_object :: (name: string) -> *Object {
 }
 
 main :: () {
-  initialize_scene_function = initialize_scene_1;
-
   //args := get_command_line_arguments();
   //if args.count < 2 {
   //  log_error("Usage: % <STL filename> <optional model scaling factor>", args[0]);
@@ -226,14 +224,28 @@ simulate_physics :: (dt: float) {
         z := lowest_vertex.z;
         lever_arm := lowest_vertex - transform.position;
 
-        coefficient_of_restitution := 0.9;
+        coefficient_of_restitution := 0.7;
 
-        impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(velocity, .{0,0,1});
-        impulse_denominator := 1.0/(density*mesh.volume) + dot_product(lever_arm, mesh.inertia_tensor * lever_arm);
-        collision_force := impulse_numerator / impulse_denominator * Vector3.{0, 0, 1};
+        //impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(velocity, .{0,0,1});
+        //impulse_denominator := 1.0/(density*mesh.volume) + dot_product(lever_arm, mesh.inertia_tensor * lever_arm);
+        //collision_force := impulse_numerator / impulse_denominator * Vector3.{0, 0, 1};
 
         //collision_force := Vector3.{0, 0, 10000.0 * abs(z*z*z)};
-        net_force += collision_force;
+
+        w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
+
+        v_rel := velocity + cross_product(w, lever_arm);
+        v_n_i := dot_product(v_rel, .{0, 0, 1});
+
+        v_n_f := -coefficient_of_restitution * v_n_i;
+
+        // J = m*delta_v = F*delta_t
+        impulse := density*mesh.volume * (v_n_f - v_n_i);
+
+        print("obj %, v_rel %, v_n_i %, v_n_f %, impulse %\n", name, v_rel, v_n_i, v_n_f, impulse);
+        
+        // F = J/delta_t
+        net_force += impulse/dt * Vector3.{0, 0, 1};
 
         //velocity.z = 0.999*abs(z);
 
@@ -245,7 +257,9 @@ simulate_physics :: (dt: float) {
 
       angular_momentum += net_torque;
 
-      if enable_gravity  velocity += .{0, 0, -9.8}*dt;
+      if enable_gravity  net_force += density * mesh.volume * .{0, 0, -9.8};
+      print("obj %, grav %, net force %\n", name, density * mesh.volume * .{0,0,-9.8}, net_force);
+      
 
       velocity += dt*(net_force / (density * mesh.volume));
       //print("obj %: pos %, vel %, net force %\n", name, transform.position, velocity, net_force);
