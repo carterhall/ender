@@ -48,8 +48,8 @@ sunlight_direction :: #run normalize(Vector3.{ 1.5, 1.3, 1 });
 
 sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 1.1;
 
-stl_object_scale := 1.0;  // Global so we can keep changing this for diff meshes easily
-stl_object_filename := "";
+enable_gravity := false;
+paused := false;
 
 initialize_scene_function: () -> ();
 
@@ -158,15 +158,13 @@ main :: () {
 
   should_exit := false;
   while !should_exit {
-    using Input;
-    inputs := Input.input_button_states;
-    if inputs[#char "R"] initialize_scene_function();   // Reset
-
     last_frame_start_time = this_frame_start_time;
     this_frame_start_time = current_time_monotonic();
     dt := cast(float) to_float64_seconds(this_frame_start_time - last_frame_start_time);
-    physics_lag += dt;
+    if !paused  physics_lag += dt;
 
+    using Input;
+    inputs := Input.input_button_states;
     Input.update_window_events();
 
     for Input.get_window_resizes() {
@@ -183,10 +181,14 @@ main :: () {
     for event: Input.events_this_frame {
       if event.type == .QUIT {
         should_exit = true;
+      } else if event.type == .KEYBOARD && event.key_pressed {
+        if event.key_code == {
+          case #char "R";  initialize_scene_function();
+          case #char "G";  enable_gravity ^= true;
+          case #char "P";  paused ^= true;
+        }
       }
     }
-
-    //while physics_time < this_frame_start_time - DT_PHYSICS {
     while (physics_lag > DT_PHYSICS) {
       simulate_physics(DT_PHYSICS);
       physics_lag -= DT_PHYSICS;
@@ -201,6 +203,8 @@ main :: () {
 }
 
 simulate_physics :: (dt: float) {
+  //apply_impulse :: (object: Object, 
+
   for *object: objects {
     using object;
 
@@ -219,16 +223,21 @@ simulate_physics :: (dt: float) {
       }
 
       if lowest_vertex.z < 0.0 {
-        //velocity.z = max(velocity.z, 0);
         z := lowest_vertex.z;
+        lever_arm := lowest_vertex - transform.position;
+
+        coefficient_of_restitution := 0.9;
+
+        impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(velocity, .{0,0,1});
+        impulse_denominator := 1.0/(density*mesh.volume) + dot_product(lever_arm, mesh.inertia_tensor * lever_arm);
+        collision_force := impulse_numerator / impulse_denominator * Vector3.{0, 0, 1};
 
         //collision_force := Vector3.{0, 0, 10000.0 * abs(z*z*z)};
-        //net_force += collision_force;
+        net_force += collision_force;
 
-        velocity.z = 0.999*abs(z);
+        //velocity.z = 0.999*abs(z);
 
-        lever_arm := transform.position - lowest_vertex;
-        //lever_arm := lowest_vertex - transform.position;
+        //lever_arm := transform.position - lowest_vertex;
         //net_torque += cross_product(lever_arm, collision_force);
 
         transform.position.z += abs(z);
@@ -236,7 +245,7 @@ simulate_physics :: (dt: float) {
 
       angular_momentum += net_torque;
 
-      //velocity += .{0, 0, -9.8}*dt;
+      if enable_gravity  velocity += .{0, 0, -9.8}*dt;
 
       velocity += dt*(net_force / (density * mesh.volume));
       //print("obj %: pos %, vel %, net force %\n", name, transform.position, velocity, net_force);

@@ -5,8 +5,9 @@ initialize_scene_1 :: () {
     transform.position = .{ 0, 0, 4 };
     transform.rotation = .{};
     velocity = .{};
-    angular_momentum = .{400, 10, -10};
-    color = .{ 0.6, 0.2, 0.2 };
+    //angular_momentum = .{400, 10, -10};
+    angular_momentum = .{0, 400, 0};
+    color = .{ 0.4, 0.45, 0.5 };
     density = density_of(.PLA);
   }
 
@@ -17,7 +18,8 @@ initialize_scene_1 :: () {
     transform.rotation = .{};
     velocity = .{};
     angular_momentum = .{1300, 10, -10};
-    color = .{ 0.9, 0.9, 0.9 };
+    //color = .{ 0.9, 0.9, 0.9 };
+    color = .{ 0.6, 0.2, 0.2 };
     density = density_of(.PLA);
   }
 
@@ -28,7 +30,7 @@ initialize_scene_1 :: () {
     transform.rotation = .{};
     velocity = .{};
     angular_momentum = .{0, 1300, 0};
-    color = .{ 0.7, 0.5, 0.3 };
+    color = .{ 0.2, 0.2, 0.6 };
     density = density_of(.PLA);
   }
 
@@ -39,7 +41,7 @@ initialize_scene_1 :: () {
     transform.rotation = .{};
     velocity = .{};
     angular_momentum = .{-10, 330, 10};
-    color = .{ 0.2, 0.2, 0.6 };
+    color = .{ 0.1, 0.1, 0.1 };
     density = density_of(.PLA);
   }
 
