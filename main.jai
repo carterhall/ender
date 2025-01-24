@@ -51,7 +51,7 @@ sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 1.1;
 enable_gravity := false;
 paused := false;
 
-initialize_scene_function: () -> () = default_scene;
+initialize_scene_function := default_scene;
 
 DT_PHYSICS :: 0.001;
 
@@ -201,80 +201,109 @@ main :: () {
 }
 
 simulate_physics :: (dt: float) {
-  //apply_impulse :: (object: Object, 
-
   for *object: objects {
     using object;
+    if !enable_movement_physics  continue;
 
-    if enable_movement_physics {
-      R := rotation_matrix(Matrix3, transform.rotation);  
+    R := rotation_matrix(Matrix3, transform.rotation);  
+    world_inverse_inertia_tensor := R * inverse(density * mesh.inertia_tensor) * transpose(R);
 
-      net_force := Vector3.{0, 0, 0};
-      net_torque := Vector3.{};
+    net_linear_momentum_change := Vector3.{0, 0, 0};
+    net_torque := Vector3.{};
 
-      lowest_vertex := Vector3.{};
-      for vertex: mesh.vertices {
-        worldspace_pos := R*vertex.position + transform.position;
-        if worldspace_pos.z < lowest_vertex.z {
-          lowest_vertex.z = worldspace_pos.z;
-        }
+    collision_happened := false;
+    collision_point := Vector3.{};
+    lowest_vertex := R*mesh.vertices[0].position + transform.position;
+
+    /*
+    for vertex: mesh.vertices {
+      worldspace_pos := R*vertex.position + transform.position;
+      if worldspace_pos.z < lowest_vertex.z || it_index == 0 {
+        lowest_vertex = worldspace_pos;
       }
-
-      if lowest_vertex.z < 0.0 {
-        z := lowest_vertex.z;
-        lever_arm := lowest_vertex - transform.position;
-
-        coefficient_of_restitution := 0.7;
-
-        //impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(velocity, .{0,0,1});
-        //impulse_denominator := 1.0/(density*mesh.volume) + dot_product(lever_arm, mesh.inertia_tensor * lever_arm);
-        //collision_force := impulse_numerator / impulse_denominator * Vector3.{0, 0, 1};
-
-        //collision_force := Vector3.{0, 0, 10000.0 * abs(z*z*z)};
-
-        w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
-
-        v_rel := velocity + cross_product(w, lever_arm);
-        v_n_i := dot_product(v_rel, .{0, 0, 1});
-
-        v_n_f := -coefficient_of_restitution * v_n_i;
-
-        // J = m*delta_v = F*delta_t
-        impulse := density*mesh.volume * (v_n_f - v_n_i);
-
-        print("obj %, v_rel %, v_n_i %, v_n_f %, impulse %\n", name, v_rel, v_n_i, v_n_f, impulse);
-        
-        // F = J/delta_t
-        net_force += impulse/dt * Vector3.{0, 0, 1};
-
-        //velocity.z = 0.999*abs(z);
-
-        //lever_arm := transform.position - lowest_vertex;
-        //net_torque += cross_product(lever_arm, collision_force);
-
-        transform.position.z += abs(z);
-      }
-
-      angular_momentum += net_torque;
-
-      if enable_gravity  net_force += density * mesh.volume * .{0, 0, -9.8};
-      print("obj %, grav %, net force %\n", name, density * mesh.volume * .{0,0,-9.8}, net_force);
-      
-
-      velocity += dt*(net_force / (density * mesh.volume));
-      //print("obj %: pos %, vel %, net force %\n", name, transform.position, velocity, net_force);
-
-
-      transform.position += velocity*dt;
-
-      // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
-      w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
-
-      rotation_change: Quaternion;
-      set_from_axis_and_angle(*rotation_change, w, dt*length(w));
-      transform.rotation = rotation_change * transform.rotation;
-      normalize_or_identity(*transform.rotation);
     }
+    collision_point = lowest_vertex;
+    */
+
+    num_collision_vertices := 0;
+    for vertex: mesh.vertices {
+      worldspace_pos := R*vertex.position + transform.position;
+      if worldspace_pos.z < 0.0 {
+        collision_happened = true;
+        num_collision_vertices += 1;
+        collision_point += worldspace_pos;
+        if worldspace_pos.z < lowest_vertex.z  lowest_vertex = worldspace_pos;
+      }
+    }
+    if collision_happened  collision_point /= cast(float)num_collision_vertices;
+
+    if collision_happened {
+      z := collision_point.z;
+      lever_arm := collision_point - transform.position;
+
+      coefficient_of_restitution := 0.5;
+      //coefficient_of_restitution := 0.1;
+      collision_normal := Vector3.{0,0,1};
+
+      // this will be calculated again later for the *update*
+      // but we need it here for the collision response
+      w := world_inverse_inertia_tensor * angular_momentum;
+
+      v_rel := velocity + cross_product(w, lever_arm);
+      v_n_i := dot_product(v_rel, collision_normal);
+      v_n_f := -coefficient_of_restitution * v_n_i;
+
+      impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(v_rel, collision_normal);
+      impulse_denominator := 1.0/(density*mesh.volume) + dot_product(
+        world_inverse_inertia_tensor * cross_product(cross_product(lever_arm, collision_normal), lever_arm),
+        collision_normal
+      );
+
+      // J = m*delta_v = F*delta_t
+      impulse := impulse_numerator / impulse_denominator * collision_normal;
+
+      // F = J/delta_t
+      net_linear_momentum_change += impulse;
+
+      // delta_L = torque * dt = (r x F) * dt = (r x (J/dt))*dt
+      net_torque += cross_product(lever_arm, impulse);
+
+      //transform.position.z += abs(collision_point.z) * 1.5;
+      //transform.position.z += abs(collision_point.z);
+      transform.position.z += abs(lowest_vertex.z);
+
+      //print("obj %, v_rel %, v_n_i %, v_n_f %, impulse %\n", name, v_rel, v_n_i, v_n_f, impulse);
+      print("obj %, v_rel %, impulse %\n", name, v_rel, impulse);
+      print("                torque %\n", net_torque);
+    }
+
+    //angular_momentum += net_angular_momentum_change;
+    //angular_momentum += net_torque * dt;
+    angular_momentum += net_torque;
+
+    tol := 0.01;
+    if enable_gravity && (lowest_vertex.z > 0.0 || abs(velocity.z) > tol) {
+      net_linear_momentum_change += density * mesh.volume * .{0, 0, -9.8} * dt;
+    } else {
+      print("% defying gravity\n", name);
+    }
+    //print("obj %, grav %, net force %\n", name, density * mesh.volume * .{0,0,-9.8}, net_force);
+    
+
+    velocity += net_linear_momentum_change / (density * mesh.volume);
+    //print("obj %: pos %, vel %, ang mom %\n", name, transform.position, velocity, angular_momentum);
+
+
+    transform.position += velocity*dt;
+
+    // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
+    //w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
+    w := world_inverse_inertia_tensor * angular_momentum;
+
+    rotation_change: Quaternion;
+    set_from_axis_and_angle(*rotation_change, w, dt*length(w));
+    transform.rotation = rotation_change * transform.rotation;
+    normalize_or_identity(*transform.rotation);
   }
 }
 
