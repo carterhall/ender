@@ -1,6 +1,6 @@
 //default_scene :: cube_only;
-default_scene :: f22_only;
-//default_scene :: big_scene;
+//default_scene :: f22_only;
+default_scene :: big_scene;
 
 cube_only :: () {
   {

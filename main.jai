@@ -1,39 +1,3 @@
-/*
-
-  so it sounds like our program has our vertex data in OBJECT LOCAL SPACE, we send those vertices to the GPU
-  then the VERTEX SHADER does the transformations into world space, then camera space(?), then canonical view volume [-1, 1].
-
-  so our game objects need to keep track of their position/rotation, and then I guess we pass those to the vertex shader somehow
-
-  and reiterating: the vertex shader should output vertices in [-1, 1].
-
-  the VERTEX SHADER's output is fed to the PRIMITIVE SETUP AND RASTERIZATION fixed function step (in modern OpenGL at least)
-  this does all the occlusion, Z buffer calculations, etc. it outputs pixels
-
-  (a GEOMETRY SHADER or TESSELLATION SHADER can OPTIONALLY process pixels after the vertex shader, before the rasterization step. 
-   it receives all 3  vertices of each triangle, rather than just 1 vertex at a time.)
-
-  the RASTERIZATION step's output pixels are fed into the FRAGMENT SHADER, which decides what their colors will be.
-
-
-*/
-
-
-/*
-
-  GL quirks and notes
-
-  the VERTEX ARRAY OBJECT is a poorly named concept that seems to describe
-  a set of vertex attributes?
-
-  the lecturer gave the example of having a vertex array for your chair object,
-  which keeps track of the attributes you need for the chair, and then you
-  switch to a different vertex array for the table, etc.
-
-  you need at least one vertex array object.
-
- */
-
 window: Window_Type;
 window_width  := cast(s32) 2560;
 window_height := cast(s32) 1600;
@@ -91,10 +55,6 @@ Object :: struct {  // I hate 'Entity'
 
   enable_movement_physics := true;
   enable_collision_physics := true;
-
-  // GL stuff, should we move this inside the Mesh maybe? Or something else?
-  mesh_shader_program: GLuint;
-  mesh_vertex_buffer_object, mesh_vertex_array_object: GLuint;
 }
 
 Material :: enum {
@@ -200,113 +160,6 @@ main :: () {
   }
 }
 
-simulate_physics :: (dt: float) {
-  for *object: objects {
-    using object;
-    if !enable_movement_physics  continue;
-
-    R := rotation_matrix(Matrix3, transform.rotation);  
-    world_inverse_inertia_tensor := R * inverse(density * mesh.inertia_tensor) * transpose(R);
-
-    net_linear_momentum_change := Vector3.{0, 0, 0};
-    net_torque := Vector3.{};
-
-    collision_happened := false;
-    collision_point := Vector3.{};
-    lowest_vertex := R*mesh.vertices[0].position + transform.position;
-
-    /*
-    for vertex: mesh.vertices {
-      worldspace_pos := R*vertex.position + transform.position;
-      if worldspace_pos.z < lowest_vertex.z || it_index == 0 {
-        lowest_vertex = worldspace_pos;
-      }
-    }
-    collision_point = lowest_vertex;
-    */
-
-    num_collision_vertices := 0;
-    for vertex: mesh.vertices {
-      worldspace_pos := R*vertex.position + transform.position;
-      if worldspace_pos.z < 0.0 {
-        collision_happened = true;
-        num_collision_vertices += 1;
-        collision_point += worldspace_pos;
-        if worldspace_pos.z < lowest_vertex.z  lowest_vertex = worldspace_pos;
-      }
-    }
-    if collision_happened  collision_point /= cast(float)num_collision_vertices;
-
-    if collision_happened {
-      z := collision_point.z;
-      lever_arm := collision_point - transform.position;
-
-      coefficient_of_restitution := 0.5;
-      //coefficient_of_restitution := 0.1;
-      collision_normal := Vector3.{0,0,1};
-
-      // this will be calculated again later for the *update*
-      // but we need it here for the collision response
-      w := world_inverse_inertia_tensor * angular_momentum;
-
-      v_rel := velocity + cross_product(w, lever_arm);
-      v_n_i := dot_product(v_rel, collision_normal);
-      v_n_f := -coefficient_of_restitution * v_n_i;
-
-      impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(v_rel, collision_normal);
-      impulse_denominator := 1.0/(density*mesh.volume) + dot_product(
-        world_inverse_inertia_tensor * cross_product(cross_product(lever_arm, collision_normal), lever_arm),
-        collision_normal
-      );
-
-      // J = m*delta_v = F*delta_t
-      impulse := impulse_numerator / impulse_denominator * collision_normal;
-
-      // F = J/delta_t
-      net_linear_momentum_change += impulse;
-
-      // delta_L = torque * dt = (r x F) * dt = (r x (J/dt))*dt
-      net_torque += cross_product(lever_arm, impulse);
-
-      //transform.position.z += abs(collision_point.z) * 1.5;
-      //transform.position.z += abs(collision_point.z);
-      transform.position.z += abs(lowest_vertex.z);
-
-      //print("obj %, v_rel %, v_n_i %, v_n_f %, impulse %\n", name, v_rel, v_n_i, v_n_f, impulse);
-      print("obj %, v_rel %, impulse %\n", name, v_rel, impulse);
-      print("                torque %\n", net_torque);
-    }
-
-    //angular_momentum += net_angular_momentum_change;
-    //angular_momentum += net_torque * dt;
-    angular_momentum += net_torque;
-
-    tol := 0.01;
-    if enable_gravity && (lowest_vertex.z > 0.0 || abs(velocity.z) > tol) {
-      net_linear_momentum_change += density * mesh.volume * .{0, 0, -9.8} * dt;
-    } else {
-      print("% defying gravity\n", name);
-    }
-    //print("obj %, grav %, net force %\n", name, density * mesh.volume * .{0,0,-9.8}, net_force);
-    
-
-    velocity += net_linear_momentum_change / (density * mesh.volume);
-    //print("obj %: pos %, vel %, ang mom %\n", name, transform.position, velocity, angular_momentum);
-
-
-    transform.position += velocity*dt;
-
-    // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
-    //w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
-    w := world_inverse_inertia_tensor * angular_momentum;
-
-    rotation_change: Quaternion;
-    set_from_axis_and_angle(*rotation_change, w, dt*length(w));
-    transform.rotation = rotation_change * transform.rotation;
-    normalize_or_identity(*transform.rotation);
-  }
-}
-
 update_camera :: (dt: float) {
   CAMERA_MOVEMENT_SPEED :: 10.0; // m/s
   CAMERA_ROTATION_SPEED :: 180.0 * TAU/360.0; // rad/s
@@ -385,180 +238,133 @@ update_camera :: (dt: float) {
   view_projection_matrix = projection_matrix * view_matrix;
 }
 
-render_one_frame :: (dt: float) {
-  glDepthMask(GL_TRUE);
-  glEnable(GL_DEPTH_TEST);
-  Simp.clear_render_target(sunlight_intensity/100 * sky_color.x, sunlight_intensity/100*sky_color.y, sunlight_intensity/100*sky_color.z, 1.0);
-  glClear(GL_DEPTH_BUFFER_BIT);
 
-  for object: objects {
-    render_object(object, camera);
-  }
-
-  Simp.swap_buffers(window);
-}
-
-render_object :: (using object: Object, camera: Camera) {
-  glBindVertexArray(mesh_vertex_array_object);
-  glBindBuffer(GL_ARRAY_BUFFER, mesh_vertex_buffer_object);
-  glUseProgram(mesh_shader_program); 
-
-  model_rotation := rotation_matrix(Matrix4, transform.rotation);
-  model_translation := make_translation_matrix4(transform.position);
-  model_matrix := model_translation * model_rotation;
-
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_rotation"), 1, GL_TRUE, *model_rotation.coef[0][0]); 
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_translation"), 1, GL_TRUE, *model_translation.coef[0][0]); 
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "view_projection_matrix"), 1, GL_TRUE, *view_projection_matrix.coef[0][0]);
-
-  // 3 floats in memory (glUniform3f takes separate args for each float)
-  glUniform3fv(glGetUniformLocation(mesh_shader_program, "sunlight_direction"), 1, cast(*float) *sunlight_direction);
-  glUniform1f(glGetUniformLocation(mesh_shader_program, "sunlight_intensity"), sunlight_intensity);
-
-  glUniform4fv(glGetUniformLocation(mesh_shader_program, "object_base_color"), 1, cast(*float) *color);
-
-  glUniform1i(glGetUniformLocation(mesh_shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
-
-  glDrawArrays(GL_TRIANGLES, 0, cast(u32) mesh.vertices.count);
-}
-
-initialize_renderer :: () {
-  mesh_shader_program := compile_and_link_shader_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
-
-  for * object: objects {
-    object.mesh_shader_program = mesh_shader_program;
+// I haven't searched *that* hard, but so far, this has been the best resource for overall game physics:
+// https://research.ncl.ac.uk/game/mastersdegree/gametechnologies/physicstutorials/
+simulate_physics :: (dt: float) {
+  for *object: objects {
     using object;
-    glGenBuffers(1, *mesh_vertex_buffer_object);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh_vertex_buffer_object);
-    defer glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.count*size_of(Vertex), mesh.vertices.data, GL_STATIC_DRAW);
+    if !enable_movement_physics  continue;
 
-    glGenVertexArrays(1, *mesh_vertex_array_object);
-    glBindVertexArray(mesh_vertex_array_object);
-    defer glBindVertexArray(0);
+    R := rotation_matrix(Matrix3, transform.rotation);  
+    world_inverse_inertia_tensor := R * inverse(density * mesh.inertia_tensor) * transpose(R);
 
-    position_attribute_location := glGetAttribLocation(mesh_shader_program, "position");
-    glEnableVertexAttribArray(cast(GLuint) position_attribute_location);
-    glVertexAttribPointer(cast(GLuint) position_attribute_location, 3, GL_FLOAT, GL_FALSE, size_of(Vertex), xx 0);
+    net_linear_momentum_change := Vector3.{0, 0, 0};
+    net_torque := Vector3.{};
 
-    normal_attribute_location   := glGetAttribLocation(mesh_shader_program, "normal");
-    glEnableVertexAttribArray(cast(GLuint) normal_attribute_location);
-    glVertexAttribPointer(cast(GLuint) normal_attribute_location, 3, GL_FLOAT, GL_FALSE, size_of(Vertex), xx size_of(Vector3));   // offset = one vec3
-  }
-}
+    collision_happened := false;
+    collision_point := Vector3.{};
+    lowest_vertex := R*mesh.vertices[0].position + transform.position;
 
-VERTEX_SHADER_SOURCE :: #string END
-  #version 330 core
-
-  // The input vertex position (this is a vertex attribute, per-vertex info)
-  // This doesn't receive data automatically - we have to attach the VERTEX ATTRIBUTE to a VERTEX BUFFER.
-  // The VERTEX BUFFER is where we can write data on the CPU side, to send that data to the GPU.
-
-  layout(location=0) in vec3 position;   
-  layout(location=1) in vec3 normal;   
-
-  out vec3 normal_for_color;
-  out vec3 position_in_modelspace_for_checkerboard;
-
-  uniform mat4 model_rotation;  // model space -> world space
-  uniform mat4 model_translation;  // model space -> world space
-  uniform mat4 view_projection_matrix;  // world space -> canonical view volume
-
-  void main() {
-    // gl_Position is *the* required output of a vertex shader
-    mat4 model_matrix = model_translation * model_rotation;
-    gl_Position = view_projection_matrix * model_matrix * vec4(position, 1);
-
-    normal_for_color = (model_rotation * vec4(normal, 1)).xyz;
-    normal_for_color = normal_for_color / length(normal_for_color);
-
-    position_in_modelspace_for_checkerboard = position;
-  }
-END
-
-FRAGMENT_SHADER_SOURCE :: #string END
-  #version 330 core
-
-  // Is this output position automatically used for color? TODO
-  layout(location=0) out vec4 color; 
-
-  in vec3 position_in_modelspace_for_checkerboard;
-  uniform bool use_checkerboard;
-
-  uniform vec4 object_base_color;
-
-  uniform float sunlight_intensity;
-  uniform vec3 sunlight_direction;
-
-  in vec3 normal_for_color;
-
-  void main() {
-    // Look at coords within the model to apply a checkerboard "texture"
-    color = object_base_color;
-    if (use_checkerboard) {
-      vec3 modelspace_pos = position_in_modelspace_for_checkerboard;
-      int x_floored = int(floor(3 * modelspace_pos.x));
-      int y_floored = int(floor(3 * modelspace_pos.y));
-      if (x_floored % 2 == 0 ^^ y_floored % 2 == 0) {
-        color = object_base_color * 0.95;
+    /*
+    for vertex: mesh.vertices {
+      worldspace_pos := R*vertex.position + transform.position;
+      if worldspace_pos.z < lowest_vertex.z || it_index == 0 {
+        lowest_vertex = worldspace_pos;
       }
     }
+    collision_point = lowest_vertex;
+    */
 
-    color = color * sunlight_intensity/100;
-    color = color * (0.4*dot(normal_for_color, sunlight_direction) + 0.6);
+    num_collision_vertices := 0;
+    for vertex: mesh.vertices {
+      worldspace_pos := R*vertex.position + transform.position;
+      if worldspace_pos.z < 0.0 {
+        collision_happened = true;
+        num_collision_vertices += 1;
+        collision_point += worldspace_pos;
+        if worldspace_pos.z < lowest_vertex.z  lowest_vertex = worldspace_pos;
+      }
+    }
+    if collision_happened  collision_point /= cast(float)num_collision_vertices;
+
+    if collision_happened {
+      z := collision_point.z;
+      lever_arm := collision_point - transform.position;
+
+      coefficient_of_restitution := 0.5;
+      //coefficient_of_restitution := 0.1;
+      collision_normal := Vector3.{0,0,1};
+
+      // this will be calculated again later for the *update*
+      // but we need it here for the collision response
+      w := world_inverse_inertia_tensor * angular_momentum;
+
+      v_rel := velocity + cross_product(w, lever_arm);
+      v_n_i := dot_product(v_rel, collision_normal);
+      v_n_f := -coefficient_of_restitution * v_n_i;
+
+      impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(v_rel, collision_normal);
+      impulse_denominator := 1.0/(density*mesh.volume) + dot_product(
+        world_inverse_inertia_tensor * cross_product(cross_product(lever_arm, collision_normal), lever_arm),
+        collision_normal
+      );
+
+      // J = m*delta_v = F*delta_t
+      impulse := impulse_numerator / impulse_denominator * collision_normal;
+
+      // F = J/delta_t
+      net_linear_momentum_change += impulse;
+
+      // delta_L = torque * dt = (r x F) * dt = (r x (J/dt))*dt
+      net_torque += cross_product(lever_arm, impulse);
+
+      transform.position.z += abs(lowest_vertex.z) * 1.5;
+      //transform.position.z += abs(collision_point.z) * 1.5;
+      //transform.position.z += abs(collision_point.z);
+
+      //print("obj %, v_rel %, v_n_i %, v_n_f %, impulse %\n", name, v_rel, v_n_i, v_n_f, impulse);
+      print("obj %, v_rel %, impulse %\n", name, v_rel, impulse);
+      print("                torque %\n", net_torque);
+    }
+
+    //angular_momentum += net_angular_momentum_change;
+    //angular_momentum += net_torque * dt;
+    angular_momentum += net_torque;
+
+    tol := 0.01;
+    if enable_gravity && (lowest_vertex.z > 0.0 || abs(velocity.z) > tol) {
+      net_linear_momentum_change += density * mesh.volume * .{0, 0, -9.8} * dt;
+    } else {
+      print("% defying gravity\n", name);
+    }
+    //print("obj %, grav %, net force %\n", name, density * mesh.volume * .{0,0,-9.8}, net_force);
+    
+
+    velocity += net_linear_momentum_change / (density * mesh.volume);
+    //print("obj %: pos %, vel %, ang mom %\n", name, transform.position, velocity, angular_momentum);
+
+
+    transform.position += velocity*dt;
+
+    // Need the rotation matrix, not quaternion, for this operation, at least as I understand it
+    //w := R * inverse(density * mesh.inertia_tensor) * transpose(R) * angular_momentum;
+    w := world_inverse_inertia_tensor * angular_momentum;
+
+    rotation_change: Quaternion;
+    set_from_axis_and_angle(*rotation_change, w, dt*length(w));
+    transform.rotation = rotation_change * transform.rotation;
+    normalize_or_identity(*transform.rotation);
+
+    // AFTER all other position updates, do the final collision resolution step
+    /*
+    should_resolve_position := false;
+    lowest_vertex = R*mesh.vertices[0].position + transform.position;
+    for vertex: mesh.vertices {
+      worldspace_pos := R*vertex.position + transform.position;
+      if worldspace_pos.z < 0.0 && worldspace_pos.z < lowest_vertex.z  {
+        should_resolve_position = true;
+        lowest_vertex = worldspace_pos;
+      }
+    }
+    if should_resolve_position { 
+      transform.position.z += abs(lowest_vertex.z);
+    }
+    */
   }
-END
-
-// GL boilerplate to compile and link our shaders.
-compile_and_link_shader_program :: (vertex_shader_source: string, fragment_shader_source: string) -> GLuint {
-  assert_shader_compiled_successfully :: (shader: GLuint) {
-    shader_compiled_successfully: GLint;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, *shader_compiled_successfully);
-    if shader_compiled_successfully  return;
-
-    log_length: GLint;
-    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, *log_length);
-    message := string.{ data=alloc(log_length,, temp), count=log_length };
-    glGetShaderInfoLog(shader, xx log_length, xx *log_length, message.data);
-    assert(false, tprint("Shader % compilation failed: %", shader, message));
-  }
-
-  assert_program_linked_successfully :: (program: GLuint) {
-    program_linked_successfully: GLint;
-    glGetProgramiv(program, GL_LINK_STATUS, *program_linked_successfully);
-    if program_linked_successfully  return;
-
-    log_length: GLint;
-    glGetProgramiv(program, GL_INFO_LOG_LENGTH, *log_length);
-    message := string.{ data=alloc(log_length,, temp), count=log_length };
-    glGetProgramInfoLog(program, xx log_length, xx *log_length, message.data);
-    assert(false, tprint("Shader program % linking failed: %", program, message));
-  }
-
-  vertex_shader := glCreateShader(GL_VERTEX_SHADER);
-  defer glDeleteShader(vertex_shader);
-  length := cast(GLint) vertex_shader_source.count;
-  glShaderSource(vertex_shader, 1, *vertex_shader_source.data, *length);
-  glCompileShader(vertex_shader);
-  assert_shader_compiled_successfully(vertex_shader);
-
-  fragment_shader := glCreateShader(GL_FRAGMENT_SHADER);
-  defer glDeleteShader(fragment_shader);
-  length  = cast(GLint) fragment_shader_source.count;
-  glShaderSource(fragment_shader, 1, *fragment_shader_source.data, *length);
-  glCompileShader(fragment_shader);
-  assert_shader_compiled_successfully(fragment_shader);
-
-  shader_program := glCreateProgram();
-  glAttachShader(shader_program, vertex_shader);
-  glAttachShader(shader_program, fragment_shader);
-  glLinkProgram(shader_program);
-  assert_program_linked_successfully(shader_program);
-
-  return shader_program;
 }
-
 #load "mesh.jai";
+#load "renderer.jai";
 #load "scenes.jai";
 
 #import "Basic";

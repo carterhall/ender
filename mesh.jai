@@ -7,12 +7,18 @@ Vertex :: struct {
   normal: Vector3;
 }
 
-Mesh :: struct {   // We are always using this as a *triangle* mesh.
+Mesh :: struct {   
+  // This is a simple triangle mesh. Vertices must form independent triangles.
   vertices: [..] Vertex;
 
+  // Physics properties
   inertia_tensor: Matrix3;
   center_of_mass: Vector3;
   volume: float;
+
+  // Rendering
+  shader_program: GLuint;
+  vertex_buffer_object, vertex_array_object: GLuint;
 }
 
 initialized :: (mesh: Mesh) -> bool {
@@ -325,3 +331,4 @@ volume :: (tetrahedron: Tetrahedron) -> float {
 #import "Basic";
 #import "File";
 #import "Math";
+#import "GL";
