@@ -143,6 +143,10 @@ main :: () {
         }
       }
     }
+
+    if inputs[#char "Z"] sunlight_intensity -= 100.0*dt;
+    if inputs[#char "C"] sunlight_intensity += 100.0*dt;
+
     while (physics_lag > DT_PHYSICS) {
       simulate_physics(DT_PHYSICS);
       physics_lag -= DT_PHYSICS;
@@ -164,20 +168,13 @@ update_camera :: (dt: float) {
   inputs := Input.input_button_states;
 
   camera.euler_angles.x = 0;
+  if inputs[Key_Code.ARROW_UP]    camera.euler_angles.y -= CAMERA_ROTATION_SPEED*dt;
+  if inputs[Key_Code.ARROW_DOWN]  camera.euler_angles.y += CAMERA_ROTATION_SPEED*dt;
+  if inputs[Key_Code.ARROW_LEFT]  camera.euler_angles.z += CAMERA_ROTATION_SPEED*dt;
+  if inputs[Key_Code.ARROW_RIGHT] camera.euler_angles.z -= CAMERA_ROTATION_SPEED*dt;
 
-  if inputs[Key_Code.ARROW_UP] && !inputs[Key_Code.ARROW_DOWN] {
-    camera.euler_angles.y -= CAMERA_ROTATION_SPEED*dt;
-  } else if !inputs[Key_Code.ARROW_UP] && inputs[Key_Code.ARROW_DOWN] {
-    camera.euler_angles.y += CAMERA_ROTATION_SPEED*dt;
-  }
   // avoid rolling over vertical
   camera.euler_angles.y = clamp(camera.euler_angles.y, -89*PI/180, 89*PI/180);
-
-  if inputs[Key_Code.ARROW_LEFT] && !inputs[Key_Code.ARROW_RIGHT] {
-    camera.euler_angles.z += CAMERA_ROTATION_SPEED*dt;
-  } else if !inputs[Key_Code.ARROW_LEFT] && inputs[Key_Code.ARROW_RIGHT] {
-    camera.euler_angles.z -= CAMERA_ROTATION_SPEED*dt;
-  }
 
   pitch, yaw: Quaternion;
   set_from_axis_and_angle(*pitch, .{0,1,0}, camera.euler_angles.y);
@@ -193,9 +190,6 @@ update_camera :: (dt: float) {
   if inputs[#char "D"] camera_velocity.y -= 1.0;
   if inputs[Key_Code.SHIFT] camera_velocity.z += 1.0;
   if inputs[Key_Code.CTRL] camera_velocity.z -= 1.0;
-
-  if inputs[#char "Z"] sunlight_intensity -= 100.0*dt;
-  if inputs[#char "C"] sunlight_intensity += 100.0*dt;
 
   camera_movement := dt * CAMERA_MOVEMENT_SPEED * normalize(camera_velocity);
 
