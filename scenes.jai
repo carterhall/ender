@@ -19,7 +19,7 @@ cube_only :: () {
     //angular_momentum = .{100, 0, 0};
     angular_momentum = .{0, 0, 0};
     color = .{ 0.7, 0.1, 0.1 };
-    density = density_of(.PLA);
+    material = PLA;
   }
 }
 
@@ -41,7 +41,7 @@ f22_only :: () {
     //angular_momentum = .{0, 400, 0};
     angular_momentum = .{};
     color = .{ 0.4, 0.45, 0.5 };
-    density = density_of(.PLA);
+    material = PLA;
   }
 }
 
@@ -63,7 +63,7 @@ big_scene :: () {
     //angular_momentum = .{0, 400, 0};
     angular_momentum = .{};
     color = .{ 0.4, 0.45, 0.5 };
-    density = density_of(.PLA);
+    material = PLA;
   }
 
   {
@@ -75,7 +75,7 @@ big_scene :: () {
     angular_momentum = .{1300, 10, -10};
     //color = .{ 0.9, 0.9, 0.9 };
     color = .{ 0.6, 0.2, 0.2 };
-    density = density_of(.PLA);
+    material = PLA;
   }
 
   {
@@ -86,7 +86,7 @@ big_scene :: () {
     velocity = .{};
     angular_momentum = .{0, 1300, 0};
     color = .{ 0.2, 0.2, 0.6 };
-    density = density_of(.PLA);
+    material = PLA;
   }
 
   {
@@ -97,7 +97,7 @@ big_scene :: () {
     velocity = .{};
     angular_momentum = .{-10, 330, 10};
     color = .{ 0.1, 0.1, 0.1 };
-    density = density_of(.PLA);
+    material = PLA;
   }
 }
 

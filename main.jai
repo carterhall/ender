@@ -48,23 +48,19 @@ Object :: struct {  // I hate 'Entity'
   velocity: Vector3;
   angular_momentum: Vector3;
 
-  density: float;
-
   mesh: Mesh;
+  material: Material;
   color: Vector3;
 
   enable_movement_physics := true;
   enable_collision_physics := true;
 }
 
-Material :: enum {
-  PLA :: 0;
+Material :: struct {
+  density := 1000.0;  // kg/m^3
+  restitution := 0.0;
 }
-
-density_of :: (material: Material) -> float {  // in kg/m^3
-  if material == .PLA  return 1240.0;
-  return 1000.0;
-}
+PLA :: Material.{ density=1240.0, restitution=0.6 };
 
 get_object :: (name: string) -> *Object {
   for * objects {
@@ -246,6 +242,9 @@ simulate_physics :: (dt: float) {
     using object;
     if !enable_movement_physics  continue;
 
+    density := material.density;
+    mass := material.density * mesh.volume;
+
     R := rotation_matrix(Matrix3, transform.rotation);  
     world_inverse_inertia_tensor := R * inverse(density * mesh.inertia_tensor) * transpose(R);
 
@@ -295,7 +294,7 @@ simulate_physics :: (dt: float) {
       v_n_f := -coefficient_of_restitution * v_n_i;
 
       impulse_numerator := -(1 + coefficient_of_restitution) * dot_product(v_rel, collision_normal);
-      impulse_denominator := 1.0/(density*mesh.volume) + dot_product(
+      impulse_denominator := 1.0/mass + dot_product(
         world_inverse_inertia_tensor * cross_product(cross_product(lever_arm, collision_normal), lever_arm),
         collision_normal
       );
@@ -324,14 +323,14 @@ simulate_physics :: (dt: float) {
 
     tol := 0.01;
     if enable_gravity && (lowest_vertex.z > 0.0 || abs(velocity.z) > tol) {
-      net_linear_momentum_change += density * mesh.volume * .{0, 0, -9.8} * dt;
+      net_linear_momentum_change += mass * .{0, 0, -9.8} * dt;
     } else {
       print("% defying gravity\n", name);
     }
-    //print("obj %, grav %, net force %\n", name, density * mesh.volume * .{0,0,-9.8}, net_force);
+    //print("obj %, grav %, net force %\n", name, mass * .{0,0,-9.8}, net_force);
     
 
-    velocity += net_linear_momentum_change / (density * mesh.volume);
+    velocity += net_linear_momentum_change / mass;
     //print("obj %: pos %, vel %, ang mom %\n", name, transform.position, velocity, angular_momentum);
 
 
