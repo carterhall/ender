@@ -7,13 +7,10 @@ objects: [..] Object;
 camera: Camera;
 view_projection_matrix: Matrix4;
 
-sunlight_intensity := 160.0;
-sunlight_direction :: #run normalize(Vector3.{ 1.5, 1.3, 1 });
-
-sky_color :: #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 1.1;
-
 enable_gravity := false;
 paused := false;
+enable_mouse_movement := false;
+
 
 initialize_scene_function := default_scene;
 
@@ -86,10 +83,13 @@ main :: () {
   //  return;
   //}
 
-  initialize_scene_function();  // Load meshes and set their properties
+  // Hell yeah
+  //gltf := gltf_parse_file("./path-to-gltf-or-glb-file");
 
   camera.position = .{ -10, -5, 4 };
   camera.euler_angles = .{ 0, 0, 0.3 };
+
+  initialize_scene_function();  // Load meshes and set their properties
 
   #if OS == .WINDOWS {
     Windows :: #import "Windows";
@@ -97,7 +97,7 @@ main :: () {
     Windows.timeBeginPeriod(1);
   }
 
-  window = create_window(window_width, window_height, "Source 3", wanted_msaa=4);
+  window = create_window(window_width, window_height, "Ender Engine", wanted_msaa=4);
   actual_msaa_level := Simp.prepare_window(window, wanted_msaa=4);
   window_width, window_height = Simp.get_render_dimensions(window);
   Simp.set_render_target(window, .LEFT_HANDED);
@@ -137,9 +137,10 @@ main :: () {
         should_exit = true;
       } else if event.type == .KEYBOARD && event.key_pressed {
         if event.key_code == {
-          case #char "R";  initialize_scene_function();
-          case #char "G";  enable_gravity ^= true;
-          case #char "P";  paused ^= true;
+          case #char "R";       initialize_scene_function();
+          case #char "G";       enable_gravity ^= true;
+          case #char "P";       paused ^= true;
+          case #char "M";       enable_mouse_movement ^= true;
         }
       }
     }
@@ -173,6 +174,11 @@ update_camera :: (dt: float) {
   if inputs[Key_Code.ARROW_LEFT]  camera.euler_angles.z += CAMERA_ROTATION_SPEED*dt;
   if inputs[Key_Code.ARROW_RIGHT] camera.euler_angles.z -= CAMERA_ROTATION_SPEED*dt;
 
+  if enable_mouse_movement{
+    camera.euler_angles.z -= 0.005 * Input.mouse_delta_x;
+    camera.euler_angles.y += 0.005 * Input.mouse_delta_y;
+  }
+
   // avoid rolling over vertical
   camera.euler_angles.y = clamp(camera.euler_angles.y, -89*PI/180, 89*PI/180);
 
@@ -199,7 +205,7 @@ update_camera :: (dt: float) {
   camera.position += camera_movement;
 
   camera_transform_matrix := make_translation_matrix4(camera.position) * rotation_matrix(Matrix4, camera.rotation);
-  view_matrix := inverse(camera_transform_matrix);
+  view_success, view_matrix := inverse(camera_transform_matrix);
 
   // This projection matrix is minuz-z-forward, like the graphics APIs want in the 
   // end. But our world coordinates are... well, what are they?
@@ -240,7 +246,10 @@ simulate_physics :: (dt: float) {
     mass := material.density * mesh.volume;
 
     R := rotation_matrix(Matrix3, transform.rotation);  
-    world_inverse_inertia_tensor := R * inverse(density * mesh.inertia_tensor) * transpose(R);
+    //world_inverse_inertia_tensor := R * inverse(density * mesh.inertia_tensor) * transpose(R);
+
+    success, inv := inverse(density * mesh.inertia_tensor);
+    world_inverse_inertia_tensor := R * inv * transpose(R);
 
     net_linear_momentum_change := Vector3.{0, 0, 0};
     net_torque := Vector3.{};
@@ -307,8 +316,9 @@ simulate_physics :: (dt: float) {
       //transform.position.z += abs(collision_point.z);
 
       //print("obj %, v_rel %, v_n_i %, v_n_f %, impulse %\n", name, v_rel, v_n_i, v_n_f, impulse);
-      print("obj %, v_rel %, impulse %\n", name, v_rel, impulse);
-      print("                torque %\n", net_torque);
+
+      //print("obj %, v_rel %, impulse %\n", name, v_rel, impulse);
+      //print("                torque %\n", net_torque);
     }
 
     //angular_momentum += net_angular_momentum_change;
@@ -319,7 +329,7 @@ simulate_physics :: (dt: float) {
     if enable_gravity && (lowest_vertex.z > 0.0 || abs(velocity.z) > tol) {
       net_linear_momentum_change += mass * .{0, 0, -9.8} * dt;
     } else {
-      print("% defying gravity\n", name);
+      //print("% defying gravity\n", name);
     }
     //print("obj %, grav %, net force %\n", name, mass * .{0,0,-9.8}, net_force);
     
@@ -367,3 +377,5 @@ Input :: #import "Input";
 Simp :: #import "Simp";
 #import "String";
 #import "Window_Creation";
+
+#import "gltf_parser";

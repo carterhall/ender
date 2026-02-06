@@ -113,7 +113,7 @@ stl_model_to_mesh :: (model: STL_Model, scale := 1.0) -> Mesh {
   array_resize(*mesh.vertices, 3*model.facets.count);
 
   for i: 0..mesh.vertices.count-1 {
-    mesh.vertices[i].position = <<(*model.facets[i/3].v1 + (i%3)) * scale;
+    mesh.vertices[i].position = (*model.facets[i/3].v1 + (i%3)).* * scale;
     mesh.vertices[i].normal = model.facets[i/3].normal;
   }
 
@@ -146,7 +146,7 @@ load_stl_model :: (file_path: string) -> STL_Model {
     return result;
   }
 
-  num_facets := << (cast(*u32) (bytes.data + 80));
+  num_facets := (cast(*u32) (bytes.data + 80)).*;
   print("Loading STL file with % facets\n", num_facets);
   array_resize(*result.facets, num_facets);
   memcpy(result.facets.data, bytes.data + 84, bytes.count - 84);
@@ -194,7 +194,7 @@ covariance_of_tetrahedron :: (tetrahedron: Tetrahedron) -> Matrix3 {
 
 // Note: this only works for constant density!
 // Returns inertia tensor, center of mass.
-mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must, float #must {
+mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3, Vector3, float {
   total_covariance := Matrix3.{};
   total_center_of_mass := Vector3.{};
   total_volume := 0.0;
@@ -268,7 +268,7 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
   Which is actually what Claude had told us! It's the parallel axis theorem.
   */
 
-  print("Total:\n  CoM %\n  volume %\n  cov %\n\n", total_center_of_mass, total_volume, total_covariance);
+  //print("Total:\n  CoM %\n  volume %\n  cov %\n\n", total_center_of_mass, total_volume, total_covariance);
   {
     // Translate the total covariance matrix, per equations (8) in the paper
     //translation := -total_center_of_mass;
@@ -280,7 +280,7 @@ mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3 #must, Vector3 #must
     total_covariance -= total_volume * outer_product(translation, translation);
 
   }
-  print("after translate,\n  cov %\n\n", total_covariance);
+  //print("after translate,\n  cov %\n\n", total_covariance);
 
   //total_covariance *= -1;
 

@@ -149,8 +149,8 @@ FRAGMENT_SHADER_SOURCE :: #string END
     color = object_base_color;
     if (use_checkerboard) {
       vec3 modelspace_pos = position_in_modelspace_for_checkerboard;
-      int x_floored = int(floor(3 * modelspace_pos.x));
-      int y_floored = int(floor(3 * modelspace_pos.y));
+      int x_floored = int(floor(1 * modelspace_pos.x));
+      int y_floored = int(floor(1 * modelspace_pos.y));
       if (x_floored % 2 == 0 ^^ y_floored % 2 == 0) {
         color = object_base_color * 0.95;
       }

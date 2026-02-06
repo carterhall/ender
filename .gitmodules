@@ -1,0 +1,3 @@
+[submodule "modules/gltf_parser"]
+	path = modules/gltf_parser
+	url = https://github.com/kooparse/gltf_parser
