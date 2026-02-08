@@ -11,7 +11,7 @@ sky_color := #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 1.1;
 cube_only :: () {
   {
     using floor_object := make_or_get_object("Floor");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/floor_big.stl");
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/floor_big.stl");
     transform.position = .{ 0, 0, -1000 };
     color = 0.8 * sky_color;
     enable_movement_physics = false;
@@ -37,7 +37,7 @@ space_1 :: () {
 
   {
     using make_or_get_object("planet2");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/sphere2.stl", scale=6_000.0);
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/sphere2.stl", scale=6_000.0);
     transform.position = .{ 0, 0, -5_500.0 };
     transform.rotation = .{};
     velocity = .{};
@@ -50,7 +50,7 @@ space_1 :: () {
 
   {
     using make_or_get_object("diamond");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/diamond1.stl", scale=6.0);
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/diamond1.stl", scale=6.0);
     transform.position = .{ 4, -4, 1000 };
     transform.rotation = .{};
     velocity = .{1, 0, 0};
@@ -76,14 +76,14 @@ space_1 :: () {
 f22_only :: () {
   {
     using floor_object := make_or_get_object("Floor");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/floor_big.stl");
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/floor_big.stl");
     color = 0.8 * sky_color;
     enable_movement_physics = false;
   }
 
   {
     using f22 := make_or_get_object("f22");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/F22-raptor.stl", scale=0.008);
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/F22-raptor.stl", scale=0.008);
     transform.position = .{ 0, 0, 4 };
     transform.rotation = .{};
     velocity = .{};
@@ -98,14 +98,14 @@ f22_only :: () {
 big_scene :: () {
   {
     using floor_object := make_or_get_object("Floor");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/floor_big.stl");
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/floor_big.stl");
     color = 0.8 * sky_color;
     enable_movement_physics = false;
   }
 
   {
     using f22 := make_or_get_object("f22");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/F22-raptor.stl", scale=0.008);
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/F22-raptor.stl", scale=0.008);
     transform.position = .{ 0, 0, 4 };
     transform.rotation = .{};
     velocity = .{};
@@ -118,7 +118,7 @@ big_scene :: () {
 
   {
     using starship := make_or_get_object("starship");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/StarshipV1.stl", scale=0.03);
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/StarshipV1.stl", scale=0.03);
     transform.position = .{ 0, 4, 4 };
     transform.rotation = .{};
     velocity = .{};
@@ -130,7 +130,7 @@ big_scene :: () {
 
   {
     using hammer := make_or_get_object("hammer");
-    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/hammer.stl", scale=0.45);
+    if !initialized(mesh)  mesh = load_mesh_from_stl_file("assets/models/hammer.stl", scale=0.45);
     transform.position = .{ 4, 0, 4 };
     transform.rotation = .{};
     velocity = .{};

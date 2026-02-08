@@ -10,7 +10,7 @@
 build :: () {
   w := compiler_create_workspace();
   options := get_build_options();
-  options.output_executable_name = "main";
+  options.output_executable_name = "ender";
 
   // Append "modules" to the existing import paths. This allows you to put third-party
   // modules into the "modules" folder without using the -import_dir compiler argument.

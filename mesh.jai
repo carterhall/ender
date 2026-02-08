@@ -50,8 +50,8 @@ make_test_canonical_tetrahedron :: () -> Mesh {
   return mesh;
 }
 
-make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> Mesh {
-//make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Mesh {
+//make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> Mesh {
+make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Mesh {
   mesh: Mesh;
 
   normals: [..] Vector3;

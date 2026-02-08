@@ -102,6 +102,8 @@ main :: () {
   window_width, window_height = Simp.get_render_dimensions(window);
   Simp.set_render_target(window, .LEFT_HANDED);
 
+  load_application_fonts();
+
   initialize_renderer();
 
   this_frame_start_time := current_time_monotonic();
@@ -366,8 +368,10 @@ simulate_physics :: (dt: float) {
     */
   }
 }
+
 #load "mesh.jai";
 #load "renderer.jai";
+#load "gui.jai";
 #load "scenes.jai";
 
 #import "Basic";

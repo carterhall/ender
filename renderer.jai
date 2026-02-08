@@ -45,6 +45,9 @@ render_one_frame :: (dt: float) {
     render_object(object, camera);
   }
 
+  Simp.set_shader_for_text();
+  Simp.draw_text(font_regular, xx 10, xx 10, "Some Text!", .{1,1,1,1});
+
   Simp.swap_buffers(window);
 }
 
@@ -72,6 +75,10 @@ render_object :: (using object: Object, camera: Camera) {
   glUniform1i(glGetUniformLocation(mesh_shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
 
   glDrawArrays(GL_TRIANGLES, 0, cast(u32) mesh.vertices.count);
+}
+
+draw_sphere :: (position: Vector3, radius: float, color: Vector4) {
+
 }
 
 initialize_renderer :: () {
