@@ -45,8 +45,9 @@ render_one_frame :: (dt: float) {
     render_object(object, camera);
   }
 
-  Simp.set_shader_for_text();
-  Simp.draw_text(font_regular, xx 10, xx 10, "Some Text!", .{1,1,1,1});
+  Simp.set_shader_for_color();
+  Simp.draw_text(font_regular, 30, 30, "Some Text!", .{1,1,1,0.5});
+  Simp.draw_text(font_regular, 60, 60, "Some Text!", .{0,0,0,1});
 
   Simp.swap_buffers(window);
 }
