@@ -17,17 +17,12 @@ Mesh :: struct {
   volume: float;
 
   // Rendering
-  shader_program: GLuint;
   vertex_buffer_object, vertex_array_object: GLuint;
-}
-
-initialized :: (mesh: Mesh) -> bool {
-  return mesh.vertices.count != 0;
 }
 
 // This function seems like the right API, but I don't love how it's basically just 
 // orchestrating these other functions
-load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
+load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Handle(Mesh) {
   stl_model := load_stl_model(file_path); 
 
   mesh := stl_model_to_mesh(stl_model, scale=scale);
@@ -41,7 +36,8 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Mesh {
 
   print("Mesh % has center of mass %, inertia tensor %, volume %\n", file_path, center_of_mass, inertia_tensor, volume);
 
-  return mesh;
+  array_add(*meshes, mesh);
+  return Handle(Mesh).{ cast(u16) meshes.count - 1 };
 }
 
 make_test_canonical_tetrahedron :: () -> Mesh {
@@ -51,7 +47,7 @@ make_test_canonical_tetrahedron :: () -> Mesh {
 }
 
 //make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> Mesh {
-make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Mesh {
+make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Handle(Mesh) {
   mesh: Mesh;
 
   normals: [..] Vector3;
@@ -102,7 +98,8 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> M
 
   print("Test cube has center of mass %, volume %, inertia tensor:\n  %\n\n", _center_of_mass, volume, inertia_tensor);
 
-  return mesh;
+  array_add(*meshes, mesh);
+  return Handle(Mesh).{ cast(u16) meshes.count - 1 };
 }
 
 

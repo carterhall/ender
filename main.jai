@@ -2,15 +2,12 @@ window: Window_Type;
 window_width  := cast(s32) 2560;
 window_height := cast(s32) 1600;
 
-objects: [..] Object;
-
 camera: Camera;
 //view_projection_matrix: Matrix4;
 
 enable_gravity := false;
 paused := false;
 enable_mouse_movement := false;
-
 
 initialize_scene_function := default_scene;
 
@@ -24,7 +21,7 @@ Camera :: struct {
   position: Vector3;
   euler_angles: Vector3;
 
-  // not updated directly by controls
+  // not updated directly by controls, calculated from the above
   rotation: Quaternion;  
 
   // various transformations needed for lighting
@@ -33,11 +30,7 @@ Camera :: struct {
   view_projection_matrix: Matrix4;
 }
 
-Transform :: struct {
-  position: Vector3;
-  rotation: Quaternion;
-}
-
+/*
 Object :: struct {  // I hate 'Entity'
   name: string;
 
@@ -52,28 +45,10 @@ Object :: struct {  // I hate 'Entity'
   enable_movement_physics := true;
   enable_collision_physics := true;
 }
+*/
 
-Material :: struct {
-  density := 1000.0;  // kg/m^3
-  restitution := 0.0;
-}
-PLA :: Material.{ density=1240.0, restitution=0.6 };
-
-get_object :: (name: string) -> *Object {
-  for * objects {
-    if it.name == name {
-      return it;
-    }
-  }
-  return null;
-}
-
-make_or_get_object :: (name: string) -> *Object {
-  object := get_object(name);
-  if object  return object;
-
-  array_add(*objects, Object.{name=name});
-  return *objects[objects.count - 1];
+initialize_materials :: () {
+  array_add(*materials, Material.{ name="PLA", density=1240, restitution=0.6 });
 }
 
 main :: () {
@@ -89,6 +64,7 @@ main :: () {
   camera.position = .{ -10, -5, 4 };
   camera.euler_angles = .{ 0, 0, 0.3 };
 
+  reset_path();
   initialize_scene_function();  // Load meshes and set their properties
 
   #if OS == .WINDOWS {
@@ -106,6 +82,18 @@ main :: () {
 
   initialize_renderer();
 
+  initialize_materials();
+
+  print("==================================================\n");
+  print("Initialized engine:\n");
+  print("- % objects\n", objects.count);
+  for objects {
+    print("  %: %\n", it_index, it);
+  }
+  print("- % meshes\n", meshes.count);
+  print("- % materials\n", materials.count);
+  print("==================================================\n");
+
   this_frame_start_time := current_time_monotonic();
   last_frame_start_time := this_frame_start_time;
 
@@ -113,6 +101,7 @@ main :: () {
   physics_lag := 0.0;
 
   should_exit := false;
+  frame_index := 0;
   while !should_exit {
     last_frame_start_time = this_frame_start_time;
     this_frame_start_time = current_time_monotonic();
@@ -245,13 +234,21 @@ update_camera :: (dt: float) {
 simulate_physics :: (dt: float) {
   for *object: objects {
     using object;
-    if !enable_movement_physics  continue;
+    if !(flags & flags.ENABLE_MOVEMENT_PHYSICS)  continue;
+
+    material := lookup(materials, material_handle);
+    mesh := lookup(meshes, mesh_handle);
+    //print("Obj: %, transform %\n", name, transform);
+    //print("Obj: %, meshvolume %\n", name, mesh.volume);
 
     density := material.density;
     mass := material.density * mesh.volume;
+    //print("Obj: %, material %\n", name, material.*);
+    //print("Obj: %, volume %\n", name, mesh.volume);
 
     R := rotation_matrix(Matrix3, transform.rotation);  
     //world_inverse_inertia_tensor := R * inverse(density * mesh.inertia_tensor) * transpose(R);
+    //print("vel %\n", velocity);
 
     success, inv := inverse(density * mesh.inertia_tensor);
     world_inverse_inertia_tensor := R * inv * transpose(R);
@@ -336,7 +333,7 @@ simulate_physics :: (dt: float) {
     } else {
       //print("% defying gravity\n", name);
     }
-    //print("obj %, grav %, net force %\n", name, mass * .{0,0,-9.8}, net_force);
+    //print("obj %, mass %\n", name, mass);
     
 
     velocity += net_linear_momentum_change / mass;
@@ -372,6 +369,7 @@ simulate_physics :: (dt: float) {
   }
 }
 
+#load "engine.jai";
 #load "mesh.jai";
 #load "renderer.jai";
 #load "gui.jai";
@@ -385,4 +383,4 @@ Simp :: #import "Simp";
 #import "String";
 #import "Window_Creation";
 
-#import "gltf_parser";
+//#import "gltf_parser";

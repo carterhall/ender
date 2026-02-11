@@ -34,6 +34,7 @@
 
  */
 
+mesh_shader_program: GLuint;
 
 render_one_frame :: (dt: float) {
   glDepthMask(GL_TRUE);
@@ -76,7 +77,7 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
     //print("Object %: position: %, center %\n", name, position, projected_center);
 
     if is_visible {
-      width := Simp.prepare_text(font_regular, name);
+      width := Simp.prepare_text(font_regular, tprint("%: %", name, transform));
       rtext := Rect.{projected_center.x - width/2, projected_center.y, xx width, xx -font_regular.character_height};
       fill_rect(rtext, .{0.2,0.2,0.6,0.1});
       Simp.draw_prepared_text(font_regular, xx rtext.x, xx rtext.y, .{1,1,1,0.5});
@@ -99,7 +100,9 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
 //}
 
 render_object :: (using object: Object, camera: Camera) {
-  mesh_shader_program := mesh.shader_program;
+  //mesh_shader_program := mesh.shader_program;
+
+  mesh := lookup(meshes, mesh_handle);
 
   glBindVertexArray(mesh.vertex_array_object);
   glBindBuffer(GL_ARRAY_BUFFER, mesh.vertex_buffer_object);
@@ -128,11 +131,11 @@ render_object :: (using object: Object, camera: Camera) {
 }
 
 initialize_renderer :: () {
-  mesh_shader_program := compile_and_link_shader_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
+  mesh_shader_program = compile_and_link_shader_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
 
   for * object: objects {
-    object.mesh.shader_program = mesh_shader_program;
     using object;
+    mesh := lookup(meshes, mesh_handle);
     glGenBuffers(1, *mesh.vertex_buffer_object);
     glBindBuffer(GL_ARRAY_BUFFER, mesh.vertex_buffer_object);
     defer glBindBuffer(GL_ARRAY_BUFFER, 0);
