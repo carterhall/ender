@@ -44,13 +44,59 @@ render_one_frame :: (dt: float) {
   for object: objects {
     render_object(object, camera);
   }
-
-  Simp.set_shader_for_color();
-  Simp.draw_text(font_regular, 30, 30, "Some Text!", .{1,1,1,0.5});
-  Simp.draw_text(font_regular, 60, 60, "Some Text!", .{0,0,0,1});
-
-  Simp.swap_buffers(window);
 }
+
+canonical_view_volume_to_pixels :: (position: Vector4) -> draw: bool, coords: Vector2 {
+  if position.z < 0  return false, .{};
+
+  return true, .{ window_width * (position.x/position.w + 1)/2, window_height * (-position.y/position.w + 1)/2 };
+}
+
+draw_gui :: (this_frame_start_time: Apollo_Time) {
+  Simp.set_shader_for_color(true);
+  //Simp.draw_text(font_regular, 30, 30, "Some Text!", .{1,1,1,0.5});
+  //Simp.draw_text(font_regular, 60, 60, "Some Text!", .{0,0,0,1});
+
+  //mouse_x, mouse_y := get_mouse_pointer_position(window, true);
+  //print("Mouse pos: %, %\n", mouse_x, mouse_y);
+
+  for object: objects {
+    using object;
+    model_rotation := rotation_matrix(Matrix4, transform.rotation);
+    model_translation := make_translation_matrix4(transform.position);
+    model_matrix := model_translation * model_rotation;
+
+    center_of_mass := Vector4.{ 0, 0, 0, 1 };
+    is_visible, projected_center := canonical_view_volume_to_pixels(camera.view_projection_matrix * model_matrix * center_of_mass);
+
+
+
+    position := Vector4.{ transform.position.x, transform.position.y, transform.position.z, 1.0 };
+    
+    //print("Object %: position: %, center %\n", name, position, projected_center);
+
+    if is_visible {
+      width := Simp.prepare_text(font_regular, name);
+      rtext := Rect.{projected_center.x - width/2, projected_center.y, xx width, xx -font_regular.character_height};
+      fill_rect(rtext, .{0.2,0.2,0.6,0.1});
+      Simp.draw_prepared_text(font_regular, xx rtext.x, xx rtext.y, .{1,1,1,0.5});
+    }
+  }
+
+  {  // Engine info
+    this_frame_end_time := current_time_monotonic();
+    frametime := 1000 * cast(float) to_float64_seconds(this_frame_end_time - this_frame_start_time);
+
+    engine_info := tprint("frametime: %ms", frametime);
+
+    font_size := font_regular.character_height;
+    Simp.draw_text(font_regular, font_size/2, window_height - font_size/2, engine_info, .{1,1,1,0.5});
+  }
+}
+
+//get_object_2d_bounds :: (using object: Object, camera: Camera) -> Rect {
+//  return .{};
+//}
 
 render_object :: (using object: Object, camera: Camera) {
   mesh_shader_program := mesh.shader_program;
@@ -59,13 +105,16 @@ render_object :: (using object: Object, camera: Camera) {
   glBindBuffer(GL_ARRAY_BUFFER, mesh.vertex_buffer_object);
   glUseProgram(mesh_shader_program); 
 
+  //glEnable(GL_BLEND);
+  //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
   model_rotation := rotation_matrix(Matrix4, transform.rotation);
   model_translation := make_translation_matrix4(transform.position);
   model_matrix := model_translation * model_rotation;
 
   glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_rotation"), 1, GL_TRUE, *model_rotation.coef[0][0]); 
   glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_translation"), 1, GL_TRUE, *model_translation.coef[0][0]); 
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "view_projection_matrix"), 1, GL_TRUE, *view_projection_matrix.coef[0][0]);
+  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "view_projection_matrix"), 1, GL_TRUE, *camera.view_projection_matrix.coef[0][0]);
 
   // 3 floats in memory (glUniform3f takes separate args for each float)
   glUniform3fv(glGetUniformLocation(mesh_shader_program, "sunlight_direction"), 1, cast(*float) *sunlight_direction);
@@ -76,10 +125,6 @@ render_object :: (using object: Object, camera: Camera) {
   glUniform1i(glGetUniformLocation(mesh_shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
 
   glDrawArrays(GL_TRIANGLES, 0, cast(u32) mesh.vertices.count);
-}
-
-draw_sphere :: (position: Vector3, radius: float, color: Vector4) {
-
 }
 
 initialize_renderer :: () {

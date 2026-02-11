@@ -5,7 +5,7 @@ window_height := cast(s32) 1600;
 objects: [..] Object;
 
 camera: Camera;
-view_projection_matrix: Matrix4;
+//view_projection_matrix: Matrix4;
 
 enable_gravity := false;
 paused := false;
@@ -143,6 +143,7 @@ main :: () {
           case #char "G";       enable_gravity ^= true;
           case #char "P";       paused ^= true;
           case #char "M";       enable_mouse_movement ^= true;
+          case #char "Q";       should_exit = true;
         }
       }
     }
@@ -157,6 +158,8 @@ main :: () {
 
     update_camera(dt);
     render_one_frame(dt);
+    draw_gui(this_frame_start_time);
+    Simp.swap_buffers(window);
 
     sleep_milliseconds(10);
     reset_temporary_storage();
@@ -177,8 +180,8 @@ update_camera :: (dt: float) {
   if inputs[Key_Code.ARROW_RIGHT] camera.euler_angles.z -= CAMERA_ROTATION_SPEED*dt;
 
   if enable_mouse_movement{
-    camera.euler_angles.z -= 0.005 * Input.mouse_delta_x;
-    camera.euler_angles.y += 0.005 * Input.mouse_delta_y;
+    camera.euler_angles.z -= 0.0035 * Input.mouse_delta_x;
+    camera.euler_angles.y += 0.0035 * Input.mouse_delta_y;
   }
 
   // avoid rolling over vertical
@@ -233,7 +236,7 @@ update_camera :: (dt: float) {
   correction._44 = 1;   // (homogeneous coordinates need this)
 
   projection_matrix = projection_matrix * correction;
-  view_projection_matrix = projection_matrix * view_matrix;
+  camera.view_projection_matrix = projection_matrix * view_matrix;
 }
 
 
