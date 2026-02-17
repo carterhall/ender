@@ -200,6 +200,10 @@ update_camera :: (dt: float) {
 
   camera_transform_matrix := make_translation_matrix4(camera.position) * rotation_matrix(Matrix4, camera.rotation);
   view_success, view_matrix := inverse(camera_transform_matrix);
+  if !view_success {
+    print("ERROR - inverting camera transform failed");
+    exit(-1);
+  }
 
   // This projection matrix is minuz-z-forward, like the graphics APIs want in the 
   // end. But our world coordinates are... well, what are they?
@@ -251,6 +255,10 @@ simulate_physics :: (dt: float) {
     //print("vel %\n", velocity);
 
     success, inv := inverse(density * mesh.inertia_tensor);
+    if !success {
+      print("ERROR - inverting inertia tensor failed for %\n", name);
+      exit(-1);
+    }
     world_inverse_inertia_tensor := R * inv * transpose(R);
 
     net_linear_momentum_change := Vector3.{0, 0, 0};

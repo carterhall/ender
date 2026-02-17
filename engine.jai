@@ -78,3 +78,7 @@ reset_path :: () {
   set_working_directory(path);
 }
 
+
+#scope_file
+#import "String";
+#import "System";

@@ -10,7 +10,7 @@ sky_color := #run Vector3.{100.0/256, 107.0/256, 120.0/256} * 1.1;
 
 cube_only :: () {
   {
-    using floor_object := make_or_get_object("Floor");
+    using make_or_get_object("Floor");
     if !mesh_handle  mesh_handle = load_mesh_from_stl_file("../assets/models/floor_big.stl");
     transform.position = .{ 0, 0, -1000 };
     color = 0.8 * sky_color;
@@ -18,7 +18,7 @@ cube_only :: () {
   }
 
   {
-    using test_cube := make_or_get_object("test cube");
+    using make_or_get_object("test cube");
     if !mesh_handle  mesh_handle = make_test_cube(side_length=1.0);
     transform.position = .{ 4, 4, 4 };
     transform.rotation = .{};
@@ -37,16 +37,16 @@ space_1 :: () {
 
   {
     using make_or_get_object("planet2");
-    if !mesh_handle  mesh_handle = load_mesh_from_stl_file("../assets/models/sphere2.stl", scale=6_000.0);
-    transform.position = .{ 0, 0, -5_500.0 };
+    if !mesh_handle  mesh_handle = load_mesh_from_stl_file("../assets/models/sphere2.stl", scale=5_000.0);
+    transform.position = .{ 0, 0, -6_700.0 };
     transform.rotation = .{};
-    velocity = .{};
+    //velocity = .{0,0,-1};
+    //velocity = .{};
     //angular_momentum = .{0, 1300, 0};
     color = .{ 0.2, 0.45, 0.7 };
     material_handle = get_material_handle("PLA");
     flags &= ~.ENABLE_MOVEMENT_PHYSICS;
     flags &= ~.ENABLE_COLLISION_PHYSICS;
-    print("Planet flags: %\n", flags);
   }
 
   {

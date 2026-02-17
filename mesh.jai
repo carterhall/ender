@@ -25,7 +25,8 @@ Mesh :: struct {
 load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Handle(Mesh) {
   stl_model := load_stl_model(file_path); 
 
-  mesh := stl_model_to_mesh(stl_model, scale=scale);
+  mesh: Mesh;
+  mesh.vertices = stl_model_to_vertices(stl_model, scale=scale);
 
   inertia_tensor, center_of_mass, volume := mass_properties_of_triangle_mesh(mesh);
 
@@ -40,13 +41,8 @@ load_mesh_from_stl_file :: (file_path: string, scale := 1.0) -> Handle(Mesh) {
   return Handle(Mesh).{ cast(u16) meshes.count - 1 };
 }
 
-make_test_canonical_tetrahedron :: () -> Mesh {
-  mesh: Mesh;
-  // TODO
-  return mesh;
-}
-
-//make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{1, 2, 3}) -> Mesh {
+// TODO, figure out a way to delete this. This is an artifact of initial distrust of the STL pipeline.
+// If we lock in the behavior of the STL loader via tests, or maybe hardcode a sanity-check cube STL, we can delete this.
 make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> Handle(Mesh) {
   mesh: Mesh;
 
@@ -105,16 +101,16 @@ make_test_cube :: (side_length := 1.0, center_of_mass := Vector3.{0, 0, 0}) -> H
 
 //#scope_file
 
-stl_model_to_mesh :: (model: STL_Model, scale := 1.0) -> Mesh {
-  mesh: Mesh;
-  array_resize(*mesh.vertices, 3*model.facets.count);
+stl_model_to_vertices :: (model: STL_Model, scale := 1.0) -> [..] Vertex {
+  vertices: [..] Vertex;
+  array_resize(*vertices, 3*model.facets.count);
 
-  for i: 0..mesh.vertices.count-1 {
-    mesh.vertices[i].position = (*model.facets[i/3].v1 + (i%3)).* * scale;
-    mesh.vertices[i].normal = model.facets[i/3].normal;
+  for i: 0..vertices.count-1 {
+    vertices[i].position = (*model.facets[i/3].v1 + (i%3)).* * scale;
+    vertices[i].normal = model.facets[i/3].normal;
   }
 
-  return mesh;
+  return vertices;
 }
 
 // These structs map directly to the STL file itself.
@@ -191,7 +187,7 @@ covariance_of_tetrahedron :: (tetrahedron: Tetrahedron) -> Matrix3 {
 
 // Note: this only works for constant density!
 // Returns inertia tensor, center of mass.
-mass_properties_of_triangle_mesh :: (mesh: Mesh) -> Matrix3, Vector3, float {
+mass_properties_of_triangle_mesh :: (mesh: Mesh) -> inertia_tensor_without_density: Matrix3, total_center_of_mass: Vector3, total_volume: float {
   total_covariance := Matrix3.{};
   total_center_of_mass := Vector3.{};
   total_volume := 0.0;
@@ -295,7 +291,11 @@ Tetrahedron :: struct {
 }
 
 // need a couple matrix helper definitions here...
-Matrix3_One :: Matrix3.{_11=1, _12=1, _13=1, _21=1, _22=1, _23=1, _31=1, _32=1, _33=1};
+Matrix3_One :: Matrix3.{
+  _11=1, _12=1, _13=1, 
+  _21=1, _22=1, _23=1, 
+  _31=1, _32=1, _33=1
+};
 
 determinant :: (m: Matrix3) -> float {
   positive := m._11*m._22*m._33 + m._12*m._23*m._31 + m._13*m._21*m._32;
@@ -329,3 +329,6 @@ volume :: (tetrahedron: Tetrahedron) -> float {
 #import "File";
 #import "Math";
 #import "GL";
+
+//#scope_file
+//#load "engine.jai";

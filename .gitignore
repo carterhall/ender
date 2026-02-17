@@ -8,6 +8,6 @@ test/*
 bin/*
 *.o
 *.dSYM
-.build/*
+*.build/*
 *.exe
 
