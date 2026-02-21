@@ -43,15 +43,6 @@ Material :: struct {
   restitution := 0.0;
 }
 
-get_object :: (name: string) -> *Object {
-  for * objects {
-    if it.name == name {
-      return it;
-    }
-  }
-  return null;
-}
-
 get_material_handle :: (name: string) -> Handle(Material) {
   for * materials {
     if it.name == name {
@@ -61,11 +52,25 @@ get_material_handle :: (name: string) -> Handle(Material) {
   return .{ 0 };
 }
 
+get_object :: (name: string) -> *Object {
+  for * objects {
+    if it.name == name {
+      return it;
+    }
+  }
+  return null;
+}
+
 make_or_get_object :: (name: string) -> *Object {
   object := get_object(name);
   if object  return object;
 
   array_add(*objects, Object.{name=name});
+  return *objects[objects.count - 1];
+}
+
+make_object :: () -> *Object {
+  array_add(*objects, Object.{name=sprint("Object %", objects.count)});
   return *objects[objects.count - 1];
 }
 

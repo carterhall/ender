@@ -8,6 +8,9 @@ camera: Camera;
 enable_gravity := false;
 paused := false;
 enable_mouse_movement := false;
+draw_object_labels := false;
+
+sphere_mesh_handle: Handle(Mesh);
 
 initialize_scene_function := default_scene;
 
@@ -30,23 +33,6 @@ Camera :: struct {
   view_projection_matrix: Matrix4;
 }
 
-/*
-Object :: struct {  // I hate 'Entity'
-  name: string;
-
-  transform: Transform;
-  velocity: Vector3;
-  angular_momentum: Vector3;
-
-  mesh: Mesh;
-  material: Material;
-  color: Vector3;
-
-  enable_movement_physics := true;
-  enable_collision_physics := true;
-}
-*/
-
 initialize_materials :: () {
   array_add(*materials, Material.{ name="PLA", density=1240, restitution=0.6 });
 }
@@ -66,6 +52,8 @@ main :: () {
 
   reset_path();
   initialize_scene_function();  // Load meshes and set their properties
+
+  if !sphere_mesh_handle  sphere_mesh_handle = load_mesh_from_stl_file("../assets/models/sphere1.stl", scale=0.75);
 
   #if OS == .WINDOWS {
     Windows :: #import "Windows";
@@ -132,7 +120,9 @@ main :: () {
           case #char "G";       enable_gravity ^= true;
           case #char "P";       paused ^= true;
           case #char "M";       enable_mouse_movement ^= true;
+          case #char "L";       draw_object_labels ^= true;
           case #char "Q";       should_exit = true;
+          case #char "O";       add_random_sphere();
         }
       }
     }
@@ -153,6 +143,25 @@ main :: () {
     sleep_milliseconds(10);
     reset_temporary_storage();
   }
+}
+
+add_random_sphere :: () {
+  obj := make_object();
+  //if !obj.mesh_handle  obj.mesh_handle = sphere_mesh_handle;
+  obj.mesh_handle = sphere_mesh_handle;
+  obj.transform.position.x = xx (random_get_zero_to_one_new() - 0.5) * 10.0;
+  obj.transform.position.y = xx (random_get_zero_to_one_new() - 0.5) * 10.0;
+  obj.transform.position.z = xx (random_get_zero_to_one_new() - 0.5) * 10.0;
+
+  obj.velocity.x = xx (random_get_zero_to_one_new() - 0.5);
+  obj.velocity.y = xx (random_get_zero_to_one_new() - 0.5);
+  obj.velocity.z = xx (random_get_zero_to_one_new() - 0.5);
+
+  obj.transform.rotation = .{};
+  obj.angular_momentum = .{0, 0, 0};
+  obj.color = .{ 0.9, 0.2, 0.2 };
+  obj.material_handle = get_material_handle("PLA");
+  print("New object: %\n", obj.*);
 }
 
 update_camera :: (dt: float) {
@@ -257,6 +266,8 @@ simulate_physics :: (dt: float) {
     success, inv := inverse(density * mesh.inertia_tensor);
     if !success {
       print("ERROR - inverting inertia tensor failed for %\n", name);
+      print(" density: %\n", density);
+      print(" tensor: %\n", mesh.inertia_tensor);
       exit(-1);
     }
     world_inverse_inertia_tensor := R * inv * transpose(R);
@@ -388,6 +399,7 @@ simulate_physics :: (dt: float) {
 Input :: #import "Input";
 #import "Math";
 Simp :: #import "Simp";
+#import "Random";
 #import "String";
 #import "Window_Creation";
 

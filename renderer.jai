@@ -61,26 +61,28 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
   //mouse_x, mouse_y := get_mouse_pointer_position(window, true);
   //print("Mouse pos: %, %\n", mouse_x, mouse_y);
 
-  for object: objects {
-    using object;
-    model_rotation := rotation_matrix(Matrix4, transform.rotation);
-    model_translation := make_translation_matrix4(transform.position);
-    model_matrix := model_translation * model_rotation;
+  if draw_object_labels {
+    for object: objects {
+      using object;
+      model_rotation := rotation_matrix(Matrix4, transform.rotation);
+      model_translation := make_translation_matrix4(transform.position);
+      model_matrix := model_translation * model_rotation;
 
-    center_of_mass := Vector4.{ 0, 0, 0, 1 };
-    is_visible, projected_center := canonical_view_volume_to_pixels(camera.view_projection_matrix * model_matrix * center_of_mass);
+      center_of_mass := Vector4.{ 0, 0, 0, 1 };
+      is_visible, projected_center := canonical_view_volume_to_pixels(camera.view_projection_matrix * model_matrix * center_of_mass);
 
+      position := Vector4.{ transform.position.x, transform.position.y, transform.position.z, 1.0 };
+      
+      //print("Object %: position: %, center %\n", name, position, projected_center);
 
-
-    position := Vector4.{ transform.position.x, transform.position.y, transform.position.z, 1.0 };
-    
-    //print("Object %: position: %, center %\n", name, position, projected_center);
-
-    if is_visible {
-      width := Simp.prepare_text(font_regular, tprint("%: %", name, transform));
-      rtext := Rect.{projected_center.x - width/2, projected_center.y, xx width, xx -font_regular.character_height};
-      fill_rect(rtext, .{0.2,0.2,0.6,0.1});
-      Simp.draw_prepared_text(font_regular, xx rtext.x, xx rtext.y, .{1,1,1,0.5});
+      if is_visible {
+        text := tprint("%: %", name, transform);
+        //print("Obj text: %\n", text);
+        width := Simp.prepare_text(font_regular, text);
+        rtext := Rect.{projected_center.x - width/2, projected_center.y, xx width, xx -font_regular.character_height};
+        fill_rect(rtext, .{0.2,0.2,0.6,0.1});
+        Simp.draw_prepared_text(font_regular, xx rtext.x, xx rtext.y, .{1,1,1,0.5});
+      }
     }
   }
 
@@ -133,9 +135,7 @@ render_object :: (using object: Object, camera: Camera) {
 initialize_renderer :: () {
   mesh_shader_program = compile_and_link_shader_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
 
-  for * object: objects {
-    using object;
-    mesh := lookup(meshes, mesh_handle);
+  for * mesh: meshes {
     glGenBuffers(1, *mesh.vertex_buffer_object);
     glBindBuffer(GL_ARRAY_BUFFER, mesh.vertex_buffer_object);
     defer glBindBuffer(GL_ARRAY_BUFFER, 0);

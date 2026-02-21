@@ -33,12 +33,16 @@ cube_only :: () {
 space_1 :: () {
   sky_color = .{0.06, 0.05, 0.07};
 
-  camera.position = .{ -10, -5, 1000 };
+  camera.position = .{ -10, -5, 0 };
+
+  sphere1_mesh_handle := load_mesh_from_stl_file("../assets/models/sphere1.stl", scale=1.0);
+  sphere2_mesh_handle := load_mesh_from_stl_file("../assets/models/sphere2.stl", scale=6000.0);
+  diamond_mesh_handle := load_mesh_from_stl_file("../assets/models/diamond1.stl", scale=6.0);
 
   {
     using make_or_get_object("planet2");
-    if !mesh_handle  mesh_handle = load_mesh_from_stl_file("../assets/models/sphere2.stl", scale=5_000.0);
-    transform.position = .{ 0, 0, -6_700.0 };
+    if !mesh_handle  mesh_handle = sphere2_mesh_handle;
+    transform.position = .{ 0, 0, -6_500.0 };
     transform.rotation = .{};
     //velocity = .{0,0,-1};
     //velocity = .{};
@@ -49,10 +53,22 @@ space_1 :: () {
     flags &= ~.ENABLE_COLLISION_PHYSICS;
   }
 
+  //{
+  //  using make_or_get_object("small planet");
+  //  if !mesh_handle  mesh_handle = sphere1_mesh_handle;
+  //  transform.position = .{ -6, -6, 0 };
+  //  transform.rotation = .{};
+  //  //velocity = .{0,0,-1};
+  //  //velocity = .{};
+  //  //angular_momentum = .{0, 1300, 0};
+  //  color = .{ 0.2, 0.45, 0.7 };
+  //  material_handle = get_material_handle("PLA");
+  //}
+
   {
     using make_or_get_object("diamond");
-    if !mesh_handle  mesh_handle = load_mesh_from_stl_file("../assets/models/diamond1.stl", scale=6.0);
-    transform.position = .{ 4, -4, 1000 };
+    if !mesh_handle  mesh_handle = diamond_mesh_handle;
+    transform.position = .{ 4, -4, 0 };
     transform.rotation = .{};
     velocity = .{1, 0, 0};
     angular_momentum = .{0, 0, 0};
@@ -62,8 +78,8 @@ space_1 :: () {
 
   {
     using make_or_get_object("diamond2");
-    if !mesh_handle  mesh_handle = load_mesh_from_stl_file("../assets/models/diamond1.stl", scale=6.0);
-    transform.position = .{ -4, -10, 1004 };
+    if !mesh_handle  mesh_handle = diamond_mesh_handle;
+    transform.position = .{ -4, -10, 4 };
     transform.rotation = .{};
     velocity = .{1, 0, 0};
     angular_momentum = .{0, 0, 0};
@@ -74,7 +90,7 @@ space_1 :: () {
   {
     using make_or_get_object("test cube");
     if !mesh_handle  mesh_handle = make_test_cube(side_length=1.0);
-    transform.position = .{ 4, 4, 1000 };
+    transform.position = .{ 4, 4, 0 };
     transform.rotation = .{};
     velocity = .{};
     //angular_momentum = .{100, 0, 0};

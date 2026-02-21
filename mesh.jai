@@ -132,11 +132,11 @@ load_stl_model :: (file_path: string) -> STL_Model {
   bytes := read_entire_file(file_path);
   if bytes.count < 84 {
     print("Warning: STL file was too small, not returning any model data\n");
-    return result;
+    exit(-1);
   }
   if bytes[0] == #char "s" && bytes[1] == #char "o" {  // lazy detection of the ASCII version of STL
     print("Warning: ASCII STL file detected (not binary), not returning any model data\n");
-    return result;
+    exit(-1);
   }
 
   num_facets := (cast(*u32) (bytes.data + 80)).*;
