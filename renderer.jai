@@ -261,7 +261,7 @@ SKYBOX_VERTEX_SHADER_SOURCE :: #string END
 
   void main() {
     direction = position;
-    vec4 out_position = view_projection_matrix * vec4(position, 1.0);
+    vec4 out_position = view_projection_matrix * vec4(99999999*position, 1.0);
     gl_Position = out_position.xyww;
   } 
 END
