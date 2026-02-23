@@ -18,9 +18,12 @@ Object :: struct {
   velocity: Vector3; // TODO move these into some physics struct?
   angular_momentum: Vector3;
 
+  model_scale := 1.0;
+
   mesh_handle: Handle(Mesh);
   material_handle: Handle(Material);
   color: Vector3;  // TODO move this into material?
+  opacity := 1.0;
 
   Flags :: enum_flags u32 {
     ENABLE_MOVEMENT_PHYSICS;
@@ -69,9 +72,14 @@ make_or_get_object :: (name: string) -> *Object {
   return *objects[objects.count - 1];
 }
 
-make_object :: () -> *Object {
-  array_add(*objects, Object.{name=sprint("Object %", objects.count)});
-  return *objects[objects.count - 1];
+make_object :: (name := "") -> Handle(Object) {
+  object_name := name;
+  if object_name == "" {
+    object_name = sprint("Object %", objects.count);
+  }
+  array_add(*objects, Object.{name=object_name});
+  //return *objects[objects.count - 1];
+  return Handle(Object).{ cast(u16) objects.count - 1 };
 }
 
 materials: [..] Material;

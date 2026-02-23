@@ -80,7 +80,7 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
         //print("Obj text: %\n", text);
         width := Simp.prepare_text(font_regular, text);
         rtext := Rect.{projected_center.x - width/2, projected_center.y, xx width, xx -font_regular.character_height};
-        fill_rect(rtext, .{0.2,0.2,0.6,0.1});
+        //fill_rect(rtext, .{0.2,0.2,0.6,0.1});
         Simp.draw_prepared_text(font_regular, xx rtext.x, xx rtext.y, .{1,1,1,0.5});
       }
     }
@@ -102,7 +102,13 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
 //}
 
 render_object :: (using object: Object, camera: Camera) {
-  //mesh_shader_program := mesh.shader_program;
+  get_uniform_location :: (shader_program: GLuint, name: string) -> GLint {
+    loc := glGetUniformLocation(shader_program, name.data);
+    assert(loc >= 0, "Uniform '%' location should be positive, but was %", name, loc);
+    return loc;
+  }
+
+  color_with_opacity := Vector4.{color.x, color.y, color.z, opacity};
 
   mesh := lookup(meshes, mesh_handle);
 
@@ -117,17 +123,20 @@ render_object :: (using object: Object, camera: Camera) {
   model_translation := make_translation_matrix4(transform.position);
   model_matrix := model_translation * model_rotation;
 
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_rotation"), 1, GL_TRUE, *model_rotation.coef[0][0]); 
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "model_translation"), 1, GL_TRUE, *model_translation.coef[0][0]); 
-  glUniformMatrix4fv(glGetUniformLocation(mesh_shader_program, "view_projection_matrix"), 1, GL_TRUE, *camera.view_projection_matrix.coef[0][0]);
+  //print("rendering object %, scale %, uniform %\n", name, model_scale, model_scale_uniform_location);
+
+  glUniformMatrix4fv(get_uniform_location(mesh_shader_program, "model_rotation"), 1, GL_TRUE, *model_rotation.coef[0][0]); 
+  glUniformMatrix4fv(get_uniform_location(mesh_shader_program, "model_translation"), 1, GL_TRUE, *model_translation.coef[0][0]); 
+  glUniformMatrix4fv(get_uniform_location(mesh_shader_program, "view_projection_matrix"), 1, GL_TRUE, *camera.view_projection_matrix.coef[0][0]);
+
+  glUniform1f(get_uniform_location(mesh_shader_program, "scale"), model_scale); 
 
   // 3 floats in memory (glUniform3f takes separate args for each float)
-  glUniform3fv(glGetUniformLocation(mesh_shader_program, "sunlight_direction"), 1, cast(*float) *sunlight_direction);
-  glUniform1f(glGetUniformLocation(mesh_shader_program, "sunlight_intensity"), sunlight_intensity);
+  glUniform3fv(get_uniform_location(mesh_shader_program, "sunlight_direction"), 1, cast(*float) *sunlight_direction);
+  glUniform1f(get_uniform_location(mesh_shader_program, "sunlight_intensity"), sunlight_intensity);
+  glUniform4fv(get_uniform_location(mesh_shader_program, "object_base_color"), 1, cast(*float) *color_with_opacity);
 
-  glUniform4fv(glGetUniformLocation(mesh_shader_program, "object_base_color"), 1, cast(*float) *color);
-
-  glUniform1i(glGetUniformLocation(mesh_shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
+  glUniform1i(get_uniform_location(mesh_shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
 
   glDrawArrays(GL_TRIANGLES, 0, cast(u32) mesh.vertices.count);
 }
@@ -171,11 +180,12 @@ VERTEX_SHADER_SOURCE :: #string END
   uniform mat4 model_rotation;  // model space -> world space
   uniform mat4 model_translation;  // model space -> world space
   uniform mat4 view_projection_matrix;  // world space -> canonical view volume
+  uniform float scale;
 
   void main() {
     // gl_Position is *the* required output of a vertex shader
     mat4 model_matrix = model_translation * model_rotation;
-    gl_Position = view_projection_matrix * model_matrix * vec4(position, 1);
+    gl_Position = view_projection_matrix * model_matrix * vec4(scale * position, 1); // note: don't scale up the 1!
 
     normal_for_color = (model_rotation * vec4(normal, 1)).xyz;
     normal_for_color = normal_for_color / length(normal_for_color);

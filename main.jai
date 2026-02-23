@@ -122,7 +122,7 @@ main :: () {
           case #char "M";       enable_mouse_movement ^= true;
           case #char "L";       draw_object_labels ^= true;
           case #char "Q";       should_exit = true;
-          case #char "O";       add_random_sphere();
+          case #char "O";       add_explosion();
         }
       }
     }
@@ -135,6 +135,8 @@ main :: () {
       physics_lag -= DT_PHYSICS;
     }
 
+    update_explosions(dt);
+
     update_camera(dt);
     render_one_frame(dt);
     draw_gui(this_frame_start_time);
@@ -145,23 +147,55 @@ main :: () {
   }
 }
 
-add_random_sphere :: () {
-  obj := make_object();
-  //if !obj.mesh_handle  obj.mesh_handle = sphere_mesh_handle;
+add_explosion :: () {
+  object_handle := make_object();
+  obj := lookup(objects, object_handle);
+
   obj.mesh_handle = sphere_mesh_handle;
   obj.transform.position.x = xx (random_get_zero_to_one_new() - 0.5) * 10.0;
   obj.transform.position.y = xx (random_get_zero_to_one_new() - 0.5) * 10.0;
   obj.transform.position.z = xx (random_get_zero_to_one_new() - 0.5) * 10.0;
 
-  obj.velocity.x = xx (random_get_zero_to_one_new() - 0.5);
-  obj.velocity.y = xx (random_get_zero_to_one_new() - 0.5);
-  obj.velocity.z = xx (random_get_zero_to_one_new() - 0.5);
+  //obj.velocity.x = xx (random_get_zero_to_one_new() - 0.5);
+  //obj.velocity.y = xx (random_get_zero_to_one_new() - 0.5);
+  //obj.velocity.z = xx (random_get_zero_to_one_new() - 0.5);
 
   obj.transform.rotation = .{};
-  obj.angular_momentum = .{0, 0, 0};
-  obj.color = .{ 0.9, 0.2, 0.2 };
+  //obj.angular_momentum = .{10, 10, 10};
+  obj.color = .{ 1.0, 1.0, 1.0 };
   obj.material_handle = get_material_handle("PLA");
   print("New object: %\n", obj.*);
+
+  array_add(*explosions, .{ object_handle, 0.0 });
+}
+
+Explosion :: struct {
+  object_handle: Handle(Object);
+  timer := 0.0;
+}
+explosions: [..] Explosion;
+//array_ordered_remove_by_index :: inline (array_pointer: *[] $T, index: s64) {
+
+update_explosions :: (dt: float) {
+  to_delete_this_frame: Handle(Explosion);
+
+  for * explosions {
+    object := lookup(objects, it.object_handle);
+    if !object  continue;
+
+    object.color.x = 1.0;
+    object.color.y = max(0.0, 1.0 - it.timer);
+    object.color.z = max(0.0, 1.0 - it.timer);
+    object.opacity = max(0.0, 1.0 - it.timer*it.timer);
+    object.model_scale = min(5.0, 2.5*it.timer);
+    it.timer += 0.5*dt;
+
+    if it.timer > 1.0 && !to_delete_this_frame {
+      to_delete_this_frame.handle = xx it_index;
+    }
+  }
+
+
 }
 
 update_camera :: (dt: float) {

@@ -44,26 +44,11 @@ space_1 :: () {
     if !mesh_handle  mesh_handle = sphere2_mesh_handle;
     transform.position = .{ 0, 0, -6_500.0 };
     transform.rotation = .{};
-    //velocity = .{0,0,-1};
-    //velocity = .{};
-    //angular_momentum = .{0, 1300, 0};
-    color = .{ 0.2, 0.45, 0.7 };
+    color = .{ 0.1, 0.40, 0.5 };
     material_handle = get_material_handle("PLA");
     flags &= ~.ENABLE_MOVEMENT_PHYSICS;
     flags &= ~.ENABLE_COLLISION_PHYSICS;
   }
-
-  //{
-  //  using make_or_get_object("small planet");
-  //  if !mesh_handle  mesh_handle = sphere1_mesh_handle;
-  //  transform.position = .{ -6, -6, 0 };
-  //  transform.rotation = .{};
-  //  //velocity = .{0,0,-1};
-  //  //velocity = .{};
-  //  //angular_momentum = .{0, 1300, 0};
-  //  color = .{ 0.2, 0.45, 0.7 };
-  //  material_handle = get_material_handle("PLA");
-  //}
 
   {
     using make_or_get_object("diamond");
