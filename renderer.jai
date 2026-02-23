@@ -274,7 +274,27 @@ SKYBOX_FRAGMENT_SHADER_SOURCE :: #string END
 
   void main() {
     vec3 normalized_direction = normalize(direction);
-    color = vec4(0.9, 0.1, 0.2, 1.0);
+
+    color = vec4(0.5*normalized_direction + 0.5, 1.0);
+
+    vec3 scaled = (1.0 + normalized_direction)*0.5 * 100;
+
+    bool is_star = false;
+    float tol = 0.0500;
+
+    if (abs(scaled.x - round(scaled.x)) < tol && abs(scaled.y - round(scaled.y)) < tol && abs(scaled.z - round(scaled.z)) < tol) {
+      is_star = true;
+    }
+
+    //if (abs(direction.y) - round(abs(direction.y)) < tol) {
+    //  is_star = true;
+    //}
+
+    if (is_star) {
+      color = vec4(1.0, 1.0, 1.0, 1.0);
+    } else {
+      color = vec4(0.03 + 0.1*normalized_direction.x, 0.03, 0.06 + 0.1*normalized_direction.y, 1.0);
+    }
   }
 END
 
