@@ -28,6 +28,7 @@ Object :: struct {
   Flags :: enum_flags u32 {
     ENABLE_MOVEMENT_PHYSICS;
     ENABLE_COLLISION_PHYSICS;
+    IS_SKYBOX;
   }
   flags := 
     Flags.ENABLE_MOVEMENT_PHYSICS |

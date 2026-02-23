@@ -35,6 +35,7 @@
  */
 
 mesh_shader_program: GLuint;
+skybox_shader_program: GLuint;
 
 render_one_frame :: (dt: float) {
   glDepthMask(GL_TRUE);
@@ -42,7 +43,16 @@ render_one_frame :: (dt: float) {
   Simp.clear_render_target(sunlight_intensity/100 * sky_color.x, sunlight_intensity/100*sky_color.y, sunlight_intensity/100*sky_color.z, 1.0);
   glClear(GL_DEPTH_BUFFER_BIT);
 
+  skybox := get_object("skybox");
+  assert(skybox != null, "Object called 'skybox' must exist! This is pretty stupid, though.");
+  if skybox {
+    glDepthFunc(GL_LEQUAL);  // claude: accept fragments at depth 1.0
+    render_object(skybox, camera);
+    glDepthFunc(GL_LESS);  // claude: restore normal depth mode
+  }
+
   for object: objects {
+    if object.flags & object.flags.IS_SKYBOX continue;
     render_object(object, camera);
   }
 }
@@ -76,7 +86,7 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
       //print("Object %: position: %, center %\n", name, position, projected_center);
 
       if is_visible {
-        text := tprint("%: %", name, transform);
+        text := tprint("%: %, %", name, transform, flags);
         //print("Obj text: %\n", text);
         width := Simp.prepare_text(font_regular, text);
         rtext := Rect.{projected_center.x - width/2, projected_center.y, xx width, xx -font_regular.character_height};
@@ -101,48 +111,62 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
 //  return .{};
 //}
 
-render_object :: (using object: Object, camera: Camera) {
-  get_uniform_location :: (shader_program: GLuint, name: string) -> GLint {
-    loc := glGetUniformLocation(shader_program, name.data);
-    assert(loc >= 0, "Uniform '%' location should be positive, but was %", name, loc);
-    return loc;
-  }
+get_uniform_location :: (shader_program: GLuint, name: string) -> GLint {
+  loc := glGetUniformLocation(shader_program, name.data);
+  assert(loc >= 0, "Uniform '%' location should be positive, but was %", name, loc);
+  return loc;
+}
 
+render_object :: (using object: Object, camera: Camera) {
   color_with_opacity := Vector4.{color.x, color.y, color.z, opacity};
 
   mesh := lookup(meshes, mesh_handle);
 
   glBindVertexArray(mesh.vertex_array_object);
   glBindBuffer(GL_ARRAY_BUFFER, mesh.vertex_buffer_object);
-  glUseProgram(mesh_shader_program); 
+
+  shader_program := ifx flags & flags.IS_SKYBOX then skybox_shader_program else mesh_shader_program;
+  glUseProgram(shader_program); 
 
   //glEnable(GL_BLEND);
   //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   model_rotation := rotation_matrix(Matrix4, transform.rotation);
   model_translation := make_translation_matrix4(transform.position);
-  model_matrix := model_translation * model_rotation;
+  //model_matrix := model_translation * model_rotation;
 
   //print("rendering object %, scale %, uniform %\n", name, model_scale, model_scale_uniform_location);
 
-  glUniformMatrix4fv(get_uniform_location(mesh_shader_program, "model_rotation"), 1, GL_TRUE, *model_rotation.coef[0][0]); 
-  glUniformMatrix4fv(get_uniform_location(mesh_shader_program, "model_translation"), 1, GL_TRUE, *model_translation.coef[0][0]); 
-  glUniformMatrix4fv(get_uniform_location(mesh_shader_program, "view_projection_matrix"), 1, GL_TRUE, *camera.view_projection_matrix.coef[0][0]);
+  if !(flags & flags.IS_SKYBOX) {
+    glUniformMatrix4fv(get_uniform_location(shader_program, "model_rotation"), 1, GL_TRUE, *model_rotation.coef[0][0]); 
+    glUniformMatrix4fv(get_uniform_location(shader_program, "model_translation"), 1, GL_TRUE, *model_translation.coef[0][0]); 
+  }
+  glUniformMatrix4fv(get_uniform_location(shader_program, "view_projection_matrix"), 1, GL_TRUE, *camera.view_projection_matrix.coef[0][0]);
 
-  glUniform1f(get_uniform_location(mesh_shader_program, "scale"), model_scale); 
+  if !(flags & flags.IS_SKYBOX) {
+    glUniform1f(get_uniform_location(shader_program, "scale"), model_scale); 
 
-  // 3 floats in memory (glUniform3f takes separate args for each float)
-  glUniform3fv(get_uniform_location(mesh_shader_program, "sunlight_direction"), 1, cast(*float) *sunlight_direction);
-  glUniform1f(get_uniform_location(mesh_shader_program, "sunlight_intensity"), sunlight_intensity);
-  glUniform4fv(get_uniform_location(mesh_shader_program, "object_base_color"), 1, cast(*float) *color_with_opacity);
+    // 3 floats in memory (glUniform3f takes separate args for each float)
+    glUniform3fv(get_uniform_location(shader_program, "sunlight_direction"), 1, cast(*float) *sunlight_direction);
+    glUniform1f(get_uniform_location(shader_program, "sunlight_intensity"), sunlight_intensity);
+    glUniform4fv(get_uniform_location(shader_program, "object_base_color"), 1, cast(*float) *color_with_opacity);
 
-  glUniform1i(get_uniform_location(mesh_shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
+    glUniform1i(get_uniform_location(shader_program, "use_checkerboard"), xx ifx name == "Floor" then 1 else 0);
+  }
 
   glDrawArrays(GL_TRIANGLES, 0, cast(u32) mesh.vertices.count);
 }
 
+//render_skybox :: (using object: Object, camera: Camera) {
+//  mesh := lookup(meshes, mesh_handle);
+//  glUniformMatrix4fv(get_uniform_location(skybox_shader_program, "view_projection_matrix"), 1, GL_TRUE, *camera.view_projection_matrix.coef[0][0]);
+//  glDrawArrays(GL_TRIANGLES, 0, cast(u32) mesh.vertices.count);
+//}
+
+
 initialize_renderer :: () {
-  mesh_shader_program = compile_and_link_shader_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE);
+  mesh_shader_program = compile_and_link_shader_program(MESH_VERTEX_SHADER_SOURCE, MESH_FRAGMENT_SHADER_SOURCE);
+  skybox_shader_program = compile_and_link_shader_program(SKYBOX_VERTEX_SHADER_SOURCE, SKYBOX_FRAGMENT_SHADER_SOURCE);
 
   for * mesh: meshes {
     glGenBuffers(1, *mesh.vertex_buffer_object);
@@ -164,7 +188,7 @@ initialize_renderer :: () {
   }
 }
 
-VERTEX_SHADER_SOURCE :: #string END
+MESH_VERTEX_SHADER_SOURCE :: #string END
   #version 330 core
 
   // The input vertex position (this is a vertex attribute, per-vertex info)
@@ -194,7 +218,7 @@ VERTEX_SHADER_SOURCE :: #string END
   }
 END
 
-FRAGMENT_SHADER_SOURCE :: #string END
+MESH_FRAGMENT_SHADER_SOURCE :: #string END
   #version 330 core
 
   // Is this output position automatically used for color? TODO
@@ -224,6 +248,33 @@ FRAGMENT_SHADER_SOURCE :: #string END
 
     color = color * sunlight_intensity/100;
     color = color * (0.4*dot(normal_for_color, sunlight_direction) + 0.6);
+  }
+END
+
+SKYBOX_VERTEX_SHADER_SOURCE :: #string END
+  #version 330 core
+
+  layout(location=0) in vec3 position;   
+  out vec3 direction;
+
+  uniform mat4 view_projection_matrix;  // world space -> canonical view volume
+
+  void main() {
+    direction = position;
+    vec4 out_position = view_projection_matrix * vec4(position, 1.0);
+    gl_Position = out_position.xyww;
+  } 
+END
+
+SKYBOX_FRAGMENT_SHADER_SOURCE :: #string END
+  #version 330 core
+
+  in vec3 direction;
+  layout(location=0) out vec4 color;
+
+  void main() {
+    vec3 normalized_direction = normalize(direction);
+    color = vec4(0.9, 0.1, 0.2, 1.0);
   }
 END
 

@@ -40,6 +40,12 @@ space_1 :: () {
   diamond_mesh_handle := load_mesh_from_stl_file("../assets/models/diamond1.stl", scale=6.0);
 
   {
+    using make_or_get_object("skybox");
+    if !mesh_handle  mesh_handle = make_test_cube(side_length=2.0);
+    flags = .IS_SKYBOX;
+  }
+
+  {
     using make_or_get_object("planet2");
     if !mesh_handle  mesh_handle = sphere2_mesh_handle;
     transform.position = .{ 0, 0, -6_500.0 };
