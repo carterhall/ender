@@ -33,11 +33,12 @@ cube_only :: () {
 space_1 :: () {
   sky_color = .{0.06, 0.05, 0.07};
 
-  camera.position = .{ -10, -5, 0 };
+  camera.position = .{ 0, -15, 30 };
+  camera.euler_angles = .{ 0, 1, 1.6 };
 
   sphere1_mesh_handle := load_mesh_from_stl_file("../assets/models/sphere1.stl", scale=1.0);
   sphere2_mesh_handle := load_mesh_from_stl_file("../assets/models/sphere2.stl", scale=6000.0);
-  diamond_mesh_handle := load_mesh_from_stl_file("../assets/models/diamond1.stl", scale=6.0);
+  diamond_mesh_handle := load_mesh_from_stl_file("../assets/models/diamond1.stl", scale=3.0);
 
   {
     using make_or_get_object("skybox");
@@ -50,7 +51,7 @@ space_1 :: () {
     if !mesh_handle  mesh_handle = sphere2_mesh_handle;
     transform.position = .{ 0, 0, -6_500.0 };
     transform.rotation = .{};
-    color = .{ 0.1, 0.40, 0.5 };
+    color = .{ 0.11, 0.32, 0.42 };
     material_handle = get_material_handle("PLA");
     flags &= ~.ENABLE_MOVEMENT_PHYSICS;
     flags &= ~.ENABLE_COLLISION_PHYSICS;

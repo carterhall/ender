@@ -199,7 +199,7 @@ update_explosions :: (dt: float) {
 }
 
 update_camera :: (dt: float) {
-  CAMERA_MOVEMENT_SPEED :: 10.0; // m/s
+  CAMERA_MOVEMENT_SPEED :: 20.0; // m/s
   CAMERA_ROTATION_SPEED :: 180.0 * TAU/360.0; // rad/s
 
   using Input;

@@ -100,7 +100,7 @@ draw_gui :: (this_frame_start_time: Apollo_Time) {
     this_frame_end_time := current_time_monotonic();
     frametime := 1000 * cast(float) to_float64_seconds(this_frame_end_time - this_frame_start_time);
 
-    engine_info := tprint("frametime: %ms", frametime);
+    engine_info := tprint("frametime: %ms, camera pos: %, camera angles: %", frametime, camera.position, camera.euler_angles);
 
     font_size := font_regular.character_height;
     Simp.draw_text(font_regular, font_size/2, window_height - font_size/2, engine_info, .{1,1,1,0.5});
@@ -275,8 +275,6 @@ SKYBOX_FRAGMENT_SHADER_SOURCE :: #string END
   void main() {
     vec3 normalized_direction = normalize(direction);
 
-    color = vec4(0.5*normalized_direction + 0.5, 1.0);
-
     vec3 scaled = (1.0 + normalized_direction)*0.5 * 100;
 
     bool is_star = false;
@@ -285,10 +283,6 @@ SKYBOX_FRAGMENT_SHADER_SOURCE :: #string END
     if (abs(scaled.x - round(scaled.x)) < tol && abs(scaled.y - round(scaled.y)) < tol && abs(scaled.z - round(scaled.z)) < tol) {
       is_star = true;
     }
-
-    //if (abs(direction.y) - round(abs(direction.y)) < tol) {
-    //  is_star = true;
-    //}
 
     if (is_star) {
       color = vec4(1.0, 1.0, 1.0, 1.0);
